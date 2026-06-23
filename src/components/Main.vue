@@ -4,6 +4,7 @@
     <!-- TOP BAR -->
     <header class="topbar">
       <div class="topbar-left">
+        <!-- Mobile: hamburger -->
         <button class="icon-btn mobile-menu-btn" @click="sidebarOpen = !sidebarOpen" aria-label="Menu">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
@@ -20,8 +21,9 @@
         </div>
       </div>
       <div class="topbar-right">
-        <span class="topbar-label">{{ currentUser?.display_name || currentUser?.username || 'Guest' }}</span>
-        <div class="avatar">{{ (currentUser?.display_name || currentUser?.username || 'G').charAt(0).toUpperCase() }}</div>
+        <span class="topbar-label">{{ currentUser ? (currentUser.displayName || currentUser.username) : 'TOP - Multimedia Team' }}</span>
+        <div class="avatar">{{ userInitials }}</div>
+        <!-- Logout button -->
         <button class="icon-btn logout-btn" @click="logout" title="Logout" aria-label="Logout">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M6 3H3v10h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -32,12 +34,28 @@
       </div>
     </header>
 
+    <!-- LOADING / ERROR STATE -->
+    <div v-if="isLoading && !songs.length && !schedules.length" class="empty-state" style="margin: auto;">
+      <p>Loading your songs and schedules…</p>
+    </div>
+    <div v-else-if="loadError" class="empty-state" style="margin: auto;">
+      <p>{{ loadError }}</p>
+      <button class="btn btn-accent btn-sm" style="margin-top: 12px;" @click="loadInitialData">Retry</button>
+    </div>
+
     <!-- APP BODY -->
-    <div class="app-body">
-      <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
+    <div v-else class="app-body">
+
+      <!-- Sidebar overlay (mobile) -->
+      <div
+        v-if="sidebarOpen"
+        class="sidebar-overlay"
+        @click="sidebarOpen = false"
+      ></div>
 
       <!-- SIDEBAR -->
       <nav class="sidebar" :class="{ 'sidebar-open': sidebarOpen }">
+        <!-- Mobile close -->
         <button class="icon-btn sidebar-close-btn" @click="sidebarOpen = false" aria-label="Close menu">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
@@ -45,14 +63,22 @@
         </button>
 
         <div class="nav-section-label">Manage</div>
-        <div class="nav-item" :class="{ active: currentView === 'library' }" @click="navigate('library')">
+        <div
+          class="nav-item"
+          :class="{ active: currentView === 'library' }"
+          @click="navigate('library')"
+        >
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
             <path d="M3 2h10v12H3z" stroke="currentColor" stroke-width="1.2"/>
             <path d="M5 5h6M5 8h4" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
           </svg>
           Song Library
         </div>
-        <div class="nav-item" :class="{ active: currentView === 'schedules' }" @click="navigate('schedules')">
+        <div
+          class="nav-item"
+          :class="{ active: currentView === 'schedules' }"
+          @click="navigate('schedules')"
+        >
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
             <rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
             <path d="M5 1v3M11 1v3M2 6h12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
@@ -88,8 +114,11 @@
 
       <!-- MAIN -->
       <div class="main">
+
         <!-- ===== LIBRARY VIEW ===== -->
         <div v-if="currentView === 'library'" class="view-container">
+
+          <!-- List column -->
           <div class="panel list-panel" :class="{ 'panel-hidden-mobile': mobileDetailOpen && currentView === 'library' }">
             <div class="panel-header">
               <span class="panel-title">Song Library</span>
@@ -119,9 +148,7 @@
                   <div class="song-row-info">
                     <div class="song-row-title">{{ song.title }}</div>
                     <div class="song-row-meta">
-                      {{ song.artist || 'Unknown artist' }}
-                      <span v-if="song.key_signature" class="song-tag">{{ song.key_signature }}</span>
-                      <span v-if="song.category" class="song-tag">{{ song.category }}</span>
+                      {{ song.artist || 'Unknown artist' }}<span v-if="song.key_signature"> · Key {{ song.key_signature }}</span>
                     </div>
                   </div>
                   <div class="song-row-actions">
@@ -154,7 +181,12 @@
             </div>
           </div>
 
-          <div class="panel detail-panel" :class="{ 'panel-active-mobile': mobileDetailOpen && currentView === 'library' }">
+          <!-- Detail column -->
+          <div
+            class="panel detail-panel"
+            :class="{ 'panel-active-mobile': mobileDetailOpen && currentView === 'library' }"
+          >
+            <!-- Mobile back button -->
             <button v-if="mobileDetailOpen" class="mobile-back-btn" @click="mobileDetailOpen = false">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -162,6 +194,7 @@
               All Songs
             </button>
 
+            <!-- Empty state -->
             <div v-if="!selectedSong" class="empty-state">
               <div class="empty-icon">
                 <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
@@ -172,16 +205,16 @@
               <p>Select a song to view<br>its lyrics and details</p>
             </div>
 
+            <!-- Song detail -->
             <div v-else class="song-detail">
               <div class="song-detail-header">
                 <div class="song-detail-title-group">
                   <div class="song-detail-name">{{ selectedSong.title }}</div>
                   <div class="song-detail-artist">{{ selectedSong.artist || 'Unknown artist' }}</div>
-                  <div class="song-detail-meta-row">
-                    <span v-if="selectedSong.key_signature" class="meta-badge">Key: {{ selectedSong.key_signature }}</span>
-                    <span v-if="selectedSong.tempo" class="meta-badge">Tempo: {{ selectedSong.tempo }}</span>
-                    <span v-if="selectedSong.time_signature" class="meta-badge">Time: {{ selectedSong.time_signature }}</span>
-                    <span v-if="selectedSong.category" class="meta-badge">{{ selectedSong.category }}</span>
+                  <div v-if="selectedSong.category || selectedSong.key_signature || selectedSong.tempo" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
+                    <span v-if="selectedSong.category" class="badge badge-pink">{{ selectedSong.category }}</span>
+                    <span v-if="selectedSong.key_signature" class="badge badge-pink">Key {{ selectedSong.key_signature }}</span>
+                    <span v-if="selectedSong.tempo" class="badge badge-pink">{{ selectedSong.tempo }}</span>
                   </div>
                 </div>
                 <div class="detail-actions">
@@ -211,6 +244,8 @@
 
         <!-- ===== SCHEDULES VIEW ===== -->
         <div v-if="currentView === 'schedules'" class="view-container">
+
+          <!-- List column -->
           <div class="panel list-panel" :class="{ 'panel-hidden-mobile': mobileDetailOpen && currentView === 'schedules' }">
             <div class="panel-header">
               <span class="panel-title">Schedules</span>
@@ -231,14 +266,14 @@
                   @click="selectSchedule(sched.id)"
                 >
                   <div class="schedule-card-title">{{ sched.name }}</div>
-                  <div class="schedule-card-meta">{{ formatDate(sched.date) }}</div>
-                  <div v-if="sched.service_time" class="schedule-card-time">{{ sched.service_time }}</div>
+                  <div class="schedule-card-meta">
+                    {{ formatDate(sched.date) }}<span v-if="sched.service_time"> · {{ sched.service_time }}</span>
+                  </div>
                   <div class="schedule-songs-count">
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                       <path d="M2 2h6v6H2z" stroke="currentColor" stroke-width="1"/>
                     </svg>
-                    {{ getScheduleSongCount(sched.id) }} song{{ getScheduleSongCount(sched.id) !== 1 ? 's' : '' }}
-                    <span v-if="sched.status" :class="['status-badge', `status-${sched.status}`]">{{ sched.status }}</span>
+                    {{ sched.song_count }} song{{ sched.song_count !== 1 ? 's' : '' }}
                   </div>
                 </div>
                 <div v-if="schedules.length === 0" class="empty-list-msg">
@@ -255,7 +290,12 @@
             </div>
           </div>
 
-          <div class="panel detail-panel" :class="{ 'panel-active-mobile': mobileDetailOpen && currentView === 'schedules' }">
+          <!-- Schedule detail column -->
+          <div
+            class="panel detail-panel"
+            :class="{ 'panel-active-mobile': mobileDetailOpen && currentView === 'schedules' }"
+          >
+            <!-- Mobile back button -->
             <button v-if="mobileDetailOpen" class="mobile-back-btn" @click="mobileDetailOpen = false">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -263,6 +303,7 @@
               All Schedules
             </button>
 
+            <!-- Empty state -->
             <div v-if="!selectedSchedule" class="empty-state">
               <div class="empty-icon">
                 <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
@@ -273,17 +314,22 @@
               <p>Select a schedule to manage<br>its songs and order</p>
             </div>
 
+            <!-- Schedule detail -->
             <div v-else class="schedule-detail">
               <div class="schedule-detail-header">
                 <div>
                   <div class="schedule-detail-name">{{ selectedSchedule.name }}</div>
-                  <div class="schedule-detail-date">{{ formatDate(selectedSchedule.date) }}</div>
-                  <div v-if="selectedSchedule.service_time" class="schedule-detail-time">{{ selectedSchedule.service_time }}</div>
-                  <div v-if="selectedSchedule.description" class="schedule-detail-desc">{{ selectedSchedule.description }}</div>
+                  <div class="schedule-detail-date">
+                    {{ formatDate(selectedSchedule.date) }}<span v-if="selectedSchedule.service_time"> · {{ selectedSchedule.service_time }}</span>
+                  </div>
+                  <div v-if="selectedSchedule.description" style="font-size:12px; color:#8a7e8a; margin-top:4px;">
+                    {{ selectedSchedule.description }}
+                  </div>
                 </div>
                 <div class="detail-actions">
+                  <span class="badge badge-pink">{{ selectedSchedule.status }}</span>
                   <span class="badge badge-pink">
-                    {{ getScheduleSongCount(selectedSchedule.id) }} song{{ getScheduleSongCount(selectedSchedule.id) !== 1 ? 's' : '' }}
+                    {{ selectedScheduleSongs.length }} song{{ selectedScheduleSongs.length !== 1 ? 's' : '' }}
                   </span>
                   <button class="btn btn-outline btn-sm delete-btn" @click="deleteSelectedSchedule()">Delete</button>
                 </div>
@@ -291,18 +337,17 @@
               <div class="panel-body sched-songs-body">
                 <div class="schedule-songs">
                   <div
-                    v-for="(ss, index) in selectedScheduleSongs"
-                    :key="ss.id"
+                    v-for="(item, index) in selectedScheduleSongs"
+                    :key="item.song_id"
                     class="sched-song-item"
                   >
                     <div class="sched-song-num">{{ index + 1 }}</div>
-                    <div class="sched-song-info" v-if="getSongById(ss.song_id)">
-                      <div class="sched-song-title">{{ getSongById(ss.song_id).title }}</div>
-                      <div class="sched-song-artist">{{ getSongById(ss.song_id).artist || 'Unknown artist' }}</div>
-                      <div v-if="ss.notes" class="sched-song-notes">{{ ss.notes }}</div>
-                    </div>
-                    <div v-else class="sched-song-info">
-                      <div class="sched-song-title" style="opacity:0.5">Song removed</div>
+                    <div class="sched-song-info">
+                      <div class="sched-song-title">{{ item.title }}</div>
+                      <div class="sched-song-artist">
+                        {{ item.artist || 'Unknown artist' }}<span v-if="item.key_signature"> · Key {{ item.key_signature }}</span>
+                      </div>
+                      <div v-if="item.notes" style="font-size:11px; color:#8a7e8a; margin-top:2px;">{{ item.notes }}</div>
                     </div>
                     <div class="drag-handle" aria-hidden="true">
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -314,7 +359,7 @@
                         <circle cx="8" cy="9" r="1" fill="currentColor"/>
                       </svg>
                     </div>
-                    <button class="icon-btn danger" @click="removeSongFromSchedule(ss.id)" title="Remove">
+                    <button class="icon-btn danger" @click="removeSongFromSchedule(item.song_id)" title="Remove">
                       <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
                         <path d="M2 3.5h9M5 3.5V2h3v1.5M10 3.5l-.7 7.5H3.7L3 3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
                       </svg>
@@ -335,9 +380,11 @@
                   >{{ song.title }}{{ song.artist ? ' — ' + song.artist : '' }}</option>
                 </select>
                 <input
-                  v-model="addSongNote"
-                  class="field-input add-song-note"
-                  placeholder="Notes (e.g. Key of D)"
+                  class="field-input"
+                  style="flex: 0 0 130px;"
+                  type="text"
+                  v-model="addSongNotes"
+                  placeholder="Notes (optional)"
                 />
                 <button class="btn btn-accent btn-sm" @click="addSongToSchedule()">Add</button>
               </div>
@@ -379,35 +426,41 @@
               <div class="field-label">Artist / Songwriter</div>
               <input class="field-input" type="text" v-model="songForm.artist" placeholder="e.g. Sinach"/>
             </div>
-            <div class="form-row">
-              <div class="form-col">
-                <div class="field-label">Key Signature</div>
-                <input class="field-input" type="text" v-model="songForm.key_signature" placeholder="e.g. C, G, Ebm"/>
+
+            <div style="display:flex; gap:12px;">
+              <div style="flex:1;">
+                <div class="field-label">Category</div>
+                <select class="field-input" v-model="songForm.category">
+                  <option value="general">General</option>
+                  <option value="worship">Worship</option>
+                  <option value="praise">Praise</option>
+                  <option value="hymn">Hymn</option>
+                  <option value="contemporary">Contemporary</option>
+                  <option value="gospel">Gospel</option>
+                </select>
               </div>
-              <div class="form-col">
+              <div style="flex:1;">
+                <div class="field-label">Key Signature</div>
+                <input class="field-input" type="text" v-model="songForm.key_signature" placeholder="e.g. G"/>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:12px;">
+              <div style="flex:1;">
                 <div class="field-label">Tempo</div>
                 <input class="field-input" type="text" v-model="songForm.tempo" placeholder="e.g. 72 BPM"/>
               </div>
-              <div class="form-col">
+              <div style="flex:1;">
                 <div class="field-label">Time Signature</div>
                 <input class="field-input" type="text" v-model="songForm.time_signature" placeholder="e.g. 4/4"/>
               </div>
             </div>
-            <div>
-              <div class="field-label">Category</div>
-              <select class="field-input" v-model="songForm.category">
-                <option value="general">General</option>
-                <option value="worship">Worship</option>
-                <option value="praise">Praise</option>
-                <option value="hymn">Hymn</option>
-                <option value="contemporary">Contemporary</option>
-                <option value="gospel">Gospel</option>
-              </select>
-            </div>
+
             <div>
               <div class="field-label">Tags</div>
-              <input class="field-input" type="text" v-model="songForm.tags" placeholder="e.g. fast, communion, offering"/>
+              <input class="field-input" type="text" v-model="songForm.tags" placeholder="comma-separated, e.g. christmas, communion"/>
             </div>
+
             <div>
               <div class="field-label">Lyrics</div>
               <textarea
@@ -419,7 +472,9 @@
           </div>
           <div class="modal-footer">
             <button class="btn btn-outline" @click="closeSongModal()">Cancel</button>
-            <button class="btn btn-accent" @click="saveSong()">Save Song</button>
+            <button class="btn btn-accent" @click="saveSong()" :disabled="isSavingSong">
+              {{ isSavingSong ? 'Saving…' : 'Save Song' }}
+            </button>
           </div>
         </div>
       </div>
@@ -430,7 +485,7 @@
       <div v-if="showScheduleModal" class="modal-overlay" @click.self="closeScheduleModal()">
         <div class="modal modal-sm">
           <div class="modal-header">
-            <span class="modal-title">{{ editingScheduleId ? 'Edit Schedule' : 'New Schedule' }}</span>
+            <span class="modal-title">New Schedule</span>
             <button class="icon-btn" @click="closeScheduleModal()">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
@@ -449,13 +504,15 @@
               />
               <div v-if="schedFormError" class="field-error">Name is required</div>
             </div>
-            <div>
-              <div class="field-label">Date *</div>
-              <input class="field-input" type="date" v-model="schedForm.date"/>
-            </div>
-            <div>
-              <div class="field-label">Service Time</div>
-              <input class="field-input" type="text" v-model="schedForm.service_time" placeholder="e.g. 9:00 AM"/>
+            <div style="display:flex; gap:12px;">
+              <div style="flex:1;">
+                <div class="field-label">Date</div>
+                <input class="field-input" type="date" v-model="schedForm.date"/>
+              </div>
+              <div style="flex:1;">
+                <div class="field-label">Service Time</div>
+                <input class="field-input" type="text" v-model="schedForm.service_time" placeholder="e.g. 9:00 AM"/>
+              </div>
             </div>
             <div>
               <div class="field-label">Status</div>
@@ -468,12 +525,14 @@
             </div>
             <div>
               <div class="field-label">Description</div>
-              <textarea class="field-input" v-model="schedForm.description" placeholder="Optional notes about this service…" style="min-height:60px"></textarea>
+              <input class="field-input" type="text" v-model="schedForm.description" placeholder="Optional notes about this service"/>
             </div>
           </div>
           <div class="modal-footer">
             <button class="btn btn-outline" @click="closeScheduleModal()">Cancel</button>
-            <button class="btn btn-accent" @click="saveSchedule()">{{ editingScheduleId ? 'Update' : 'Create' }} Schedule</button>
+            <button class="btn btn-accent" @click="saveSchedule()" :disabled="isSavingSchedule">
+              {{ isSavingSchedule ? 'Creating…' : 'Create Schedule' }}
+            </button>
           </div>
         </div>
       </div>
@@ -501,25 +560,21 @@
               <div class="schedule-card-title">{{ sched.name }}</div>
               <div class="schedule-card-meta">{{ formatDate(sched.date) }}</div>
             </div>
-            <div v-if="schedules.length === 0" class="empty-list-msg">
-              No schedules available. Create one first.
-            </div>
           </div>
         </div>
       </div>
     </Transition>
 
+    <div class="toast" :class="{ show: toastVisible }">{{ toastMessage }}</div>
+
   </div>
 </template>
 
 <script>
-/**
- * Main.vue — Hymn App Dashboard
- * Connected to Turso (libSQL) database via API service.
- *
- * REQUIRED: Create src/services/turso-api.js with your HTTP client.
- * The API client must implement the methods used below.
- */
+// API_BASE: same-origin "/api" by default. Set VITE_API_URL in the
+// frontend's .env only if backend and frontend are deployed on different
+// origins (see backend README for the same-origin-vs-not tradeoffs).
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export default {
   name: 'FlowApp',
@@ -528,53 +583,49 @@ export default {
     return {
       currentView: 'library',
 
-      // Data from Turso
+      // Server-backed state
       songs: [],
-      schedules: [],
-      scheduleSongs: [],
+      schedules: [], // { id, name, date, description, status, service_time, song_count }
+      scheduleDetails: {}, // schedule_id -> { schedule, songs: [{song_id, position, notes, title, artist, key_signature, tempo}] }
 
       selectedSongId: null,
       selectedSchedId: null,
+
+      // Auth / loading state
+      currentUser: null,
+      isLoading: true,
+      loadError: '',
+      isSavingSong: false,
+      isSavingSchedule: false,
 
       // UI
       sidebarOpen: false,
       mobileDetailOpen: false,
       songSearch: '',
       addSongSelectValue: '',
-      addSongNote: '',
-      isLoading: false,
-      errorMessage: '',
+      addSongNotes: '',
 
       // Modals
       showSongModal: false,
       showScheduleModal: false,
       showPickScheduleModal: false,
       editingSongId: null,
-      editingScheduleId: null,
 
-      // Forms — match DB columns exactly
+      // Forms — field names match the songs / schedules table columns
+      // directly, so there's no translation layer between the UI and
+      // what gets sent to the API.
       songForm: {
-        title: '',
-        artist: '',
-        lyrics: '',
-        lyrics_format: 'auto',
-        category: 'general',
-        key_signature: '',
-        tempo: '',
-        time_signature: '',
-        tags: '',
+        title: '', artist: '', lyrics: '',
+        category: 'general', key_signature: '', tempo: '', time_signature: '', tags: '',
       },
-      schedForm: {
-        name: '',
-        date: '',
-        description: '',
-        status: 'draft',
-        service_time: '',
-      },
+      schedForm: { name: '', date: '', description: '', service_time: '', status: 'draft' },
       songFormError: false,
       schedFormError: false,
 
-      currentUser: null,
+      // Toast
+      toastMessage: '',
+      toastVisible: false,
+      toastTimer: null,
     };
   },
 
@@ -585,9 +636,7 @@ export default {
       return this.songs.filter(
         (s) =>
           s.title.toLowerCase().includes(q) ||
-          (s.artist || '').toLowerCase().includes(q) ||
-          (s.tags || '').toLowerCase().includes(q) ||
-          (s.category || '').toLowerCase().includes(q)
+          (s.artist || '').toLowerCase().includes(q)
       );
     },
 
@@ -600,70 +649,90 @@ export default {
     },
 
     selectedScheduleSongs() {
-      if (!this.selectedSchedule) return [];
-      return this.scheduleSongs
-        .filter((ss) => ss.schedule_id === this.selectedSchedule.id && ss.is_active === 1)
-        .sort((a, b) => a.position - b.position);
+      return this.scheduleDetails[this.selectedSchedId]?.songs ?? [];
     },
 
     availableSongsForSchedule() {
-      if (!this.selectedSchedule) return [];
-      const usedIds = new Set(
-        this.scheduleSongs
-          .filter((ss) => ss.schedule_id === this.selectedSchedule.id && ss.is_active === 1)
-          .map((ss) => ss.song_id)
-      );
+      if (!this.selectedSchedId) return [];
+      const usedIds = new Set(this.selectedScheduleSongs.map((s) => s.song_id));
       return this.songs.filter((s) => !usedIds.has(s.id));
+    },
+
+    userInitials() {
+      const name = this.currentUser?.displayName || this.currentUser?.username || 'TOP';
+      return name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0].toUpperCase())
+        .join('');
     },
   },
 
   async mounted() {
-    this.loadUser();
-    await this.fetchAllData();
+    // Restore non-sensitive display info immediately so the topbar
+    // doesn't flash the default placeholder while /auth/me resolves.
+    const cached = sessionStorage.getItem('hymn_user');
+    if (cached) {
+      try { this.currentUser = JSON.parse(cached); } catch { /* ignore bad cache */ }
+    }
+
+    // The only thing that actually proves a session is valid is asking the
+    // server, since the session cookie is httpOnly and unreadable here.
+    const sessionOk = await this.verifySession();
+    if (!sessionOk) {
+      this.$router.push('/login');
+      return;
+    }
+
+    await this.loadInitialData();
+  },
+
+  beforeUnmount() {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
   },
 
   methods: {
-    // ── Auth / User ──
-    loadUser() {
-      try {
-        const raw = localStorage.getItem('hymn_user_data');
-        if (raw) this.currentUser = JSON.parse(raw);
-      } catch (e) {
-        this.currentUser = null;
-      }
+    // ── Toast ──
+    showToast(msg) {
+      this.toastMessage = msg;
+      this.toastVisible = true;
+      if (this.toastTimer) clearTimeout(this.toastTimer);
+      this.toastTimer = setTimeout(() => {
+        this.toastVisible = false;
+      }, 3200);
     },
 
-    // ── Turso API Service (injected via provide/inject or imported) ──
-    // Replace these with your actual API service import:
-    // import { tursoApi } from '@/services/turso-api.js';
-
-    getApi() {
-      // TODO: Replace with your actual API client import
-      // Example using @libsql/client or a custom fetch wrapper:
-      // return tursoApi;
-      throw new Error('API client not configured. Create src/services/turso-api.js and update getApi().');
+    showFetchError(err) {
+      console.error(err);
+      this.showToast(err.message || 'Something went wrong. Please try again.');
     },
 
-    // ── Data Fetching ──
-    async fetchAllData() {
-      this.isLoading = true;
-      this.errorMessage = '';
+    // ── Auth ──
+    async verifySession() {
       try {
-        const api = this.getApi();
-        const [songsRes, schedulesRes, schedSongsRes] = await Promise.all([
-          api.getSongs(),
-          api.getSchedules(),
-          api.getScheduleSongs(),
-        ]);
-        this.songs = songsRes;
-        this.schedules = schedulesRes;
-        this.scheduleSongs = schedSongsRes;
+        const res = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' });
+        if (!res.ok) return false;
+        const data = await res.json();
+        this.currentUser = data.user;
+        sessionStorage.setItem('hymn_user', JSON.stringify(data.user));
+        return true;
       } catch (err) {
-        this.errorMessage = err.message || 'Failed to load data from database.';
-        console.error(err);
-      } finally {
-        this.isLoading = false;
+        console.error('Session check failed:', err);
+        return false;
       }
+    },
+
+    async logout() {
+      try {
+        await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' });
+      } catch (err) {
+        // Even if the request fails, still clear local state and leave —
+        // we don't want a network hiccup to trap someone on this screen.
+        console.error('Logout request failed:', err);
+      }
+      sessionStorage.removeItem('hymn_user');
+      this.$router.push('/login');
     },
 
     // ── Navigation ──
@@ -678,12 +747,55 @@ export default {
       }
     },
 
-    // ── Logout ──
-    logout() {
-      localStorage.removeItem('hymn_auth');
-      localStorage.removeItem('hymn_user');
-      localStorage.removeItem('hymn_user_data');
-      this.$router.push('/login');
+    // ── Data loading ──
+    async loadInitialData() {
+      this.isLoading = true;
+      this.loadError = '';
+      try {
+        const [songsRes, schedulesRes] = await Promise.all([
+          fetch(`${API_BASE}/songs`, { credentials: 'include' }),
+          fetch(`${API_BASE}/schedules`, { credentials: 'include' }),
+        ]);
+
+        if (songsRes.status === 401 || schedulesRes.status === 401) {
+          this.$router.push('/login');
+          return;
+        }
+
+        const songsData = await songsRes.json();
+        const schedulesData = await schedulesRes.json();
+
+        if (!songsRes.ok) throw new Error(songsData.error || 'Could not load songs');
+        if (!schedulesRes.ok) throw new Error(schedulesData.error || 'Could not load schedules');
+
+        this.songs = songsData.songs;
+        this.schedules = schedulesData.schedules;
+      } catch (err) {
+        this.loadError = err.message || 'Could not load your data. Check your connection and try again.';
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    async refreshScheduleList() {
+      try {
+        const res = await fetch(`${API_BASE}/schedules`, { credentials: 'include' });
+        const data = await res.json();
+        if (res.ok) this.schedules = data.schedules;
+      } catch (err) {
+        console.error('Could not refresh schedules:', err);
+      }
+    },
+
+    async loadScheduleDetail(id) {
+      try {
+        const res = await fetch(`${API_BASE}/schedules/${id}`, { credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not load schedule');
+        this.scheduleDetails = { ...this.scheduleDetails, [id]: data };
+      } catch (err) {
+        this.showFetchError(err);
+      }
     },
 
     // ── Selection ──
@@ -692,32 +804,20 @@ export default {
       this.mobileDetailOpen = true;
     },
 
-    selectSchedule(id) {
+    async selectSchedule(id) {
       this.selectedSchedId = id;
       this.mobileDetailOpen = true;
-    },
-
-    getSongById(id) {
-      return this.songs.find((s) => s.id === id) ?? null;
-    },
-
-    getScheduleSongCount(scheduleId) {
-      return this.scheduleSongs.filter((ss) => ss.schedule_id === scheduleId && ss.is_active === 1).length;
+      this.addSongSelectValue = '';
+      this.addSongNotes = '';
+      await this.loadScheduleDetail(id);
     },
 
     // ── Song CRUD ──
     openSongModal() {
       this.editingSongId = null;
       this.songForm = {
-        title: '',
-        artist: '',
-        lyrics: '',
-        lyrics_format: 'auto',
-        category: 'general',
-        key_signature: '',
-        tempo: '',
-        time_signature: '',
-        tags: '',
+        title: '', artist: '', lyrics: '',
+        category: 'general', key_signature: '', tempo: '', time_signature: '', tags: '',
       };
       this.songFormError = false;
       this.showSongModal = true;
@@ -735,51 +835,45 @@ export default {
         return;
       }
       this.songFormError = false;
+      this.isSavingSong = true;
 
-      const userId = this.currentUser?.id || null;
-      const api = this.getApi();
+      const payload = {
+        title: this.songForm.title.trim(),
+        artist: this.songForm.artist.trim(),
+        lyrics: this.songForm.lyrics.trim(),
+        category: this.songForm.category,
+        key_signature: this.songForm.key_signature.trim(),
+        tempo: this.songForm.tempo.trim(),
+        time_signature: this.songForm.time_signature.trim(),
+        tags: this.songForm.tags.trim(),
+      };
 
       try {
+        const url = this.editingSongId ? `${API_BASE}/songs/${this.editingSongId}` : `${API_BASE}/songs`;
+        const res = await fetch(url, {
+          method: this.editingSongId ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not save song');
+
         if (this.editingSongId) {
-          const payload = {
-            title: this.songForm.title.trim(),
-            artist: this.songForm.artist.trim(),
-            lyrics: this.songForm.lyrics.trim(),
-            lyrics_format: this.songForm.lyrics_format,
-            category: this.songForm.category,
-            key_signature: this.songForm.key_signature.trim(),
-            tempo: this.songForm.tempo.trim(),
-            time_signature: this.songForm.time_signature.trim(),
-            tags: this.songForm.tags.trim(),
-            updated_at: new Date().toISOString(),
-          };
-          await api.updateSong(this.editingSongId, payload);
-          // Refresh from DB to get triggers/updated fields
-          const updated = await api.getSongById(this.editingSongId);
           const idx = this.songs.findIndex((s) => s.id === this.editingSongId);
-          if (idx !== -1) this.songs.splice(idx, 1, updated);
+          if (idx !== -1) this.songs.splice(idx, 1, data.song);
         } else {
-          const payload = {
-            title: this.songForm.title.trim(),
-            artist: this.songForm.artist.trim(),
-            lyrics: this.songForm.lyrics.trim(),
-            lyrics_format: 'auto',
-            category: this.songForm.category,
-            key_signature: this.songForm.key_signature.trim(),
-            tempo: this.songForm.tempo.trim(),
-            time_signature: this.songForm.time_signature.trim(),
-            tags: this.songForm.tags.trim(),
-            created_by: userId,
-          };
-          const newSong = await api.createSong(payload);
-          this.songs.push(newSong);
-          this.selectedSongId = newSong.id;
+          this.songs.push(data.song);
+          this.songs.sort((a, b) => a.title.localeCompare(b.title));
+          this.selectedSongId = data.song.id;
+          this.currentView = 'library';
           this.mobileDetailOpen = true;
         }
         this.closeSongModal();
       } catch (err) {
-        this.errorMessage = err.message || 'Failed to save song.';
-        console.error(err);
+        this.showFetchError(err);
+      } finally {
+        this.isSavingSong = false;
       }
     },
 
@@ -791,7 +885,6 @@ export default {
         title: song.title,
         artist: song.artist || '',
         lyrics: song.lyrics || '',
-        lyrics_format: song.lyrics_format || 'auto',
         category: song.category || 'general',
         key_signature: song.key_signature || '',
         tempo: song.tempo || '',
@@ -805,105 +898,98 @@ export default {
     async deleteSong(id) {
       if (!confirm('Delete this song? It will also be removed from all schedules.')) return;
       try {
-        const api = this.getApi();
-        await api.deleteSong(id);
+        const res = await fetch(`${API_BASE}/songs/${id}`, { method: 'DELETE', credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not delete song');
+
         this.songs = this.songs.filter((s) => s.id !== id);
-        // Refresh junction table since CASCADE may have fired
-        this.scheduleSongs = await api.getScheduleSongs();
+
+        // The DB cascades the delete into schedule_songs, so refresh
+        // cached schedule detail/counts rather than trying to patch them
+        // by hand.
+        this.scheduleDetails = {};
+        await this.refreshScheduleList();
+        if (this.selectedSchedId) await this.loadScheduleDetail(this.selectedSchedId);
+
         if (this.selectedSongId === id) {
           this.selectedSongId = null;
           this.mobileDetailOpen = false;
         }
       } catch (err) {
-        this.errorMessage = err.message || 'Failed to delete song.';
-        console.error(err);
+        this.showFetchError(err);
       }
     },
 
     // ── Schedule CRUD ──
     openScheduleModal() {
-      this.editingScheduleId = null;
-      this.schedForm = {
-        name: '',
-        date: '',
-        description: '',
-        status: 'draft',
-        service_time: '',
-      };
+      this.schedForm = { name: '', date: '', description: '', service_time: '', status: 'draft' };
       this.schedFormError = false;
       this.showScheduleModal = true;
     },
 
     closeScheduleModal() {
       this.showScheduleModal = false;
-      this.editingScheduleId = null;
       this.schedFormError = false;
     },
 
     async saveSchedule() {
-      if (!this.schedForm.name.trim() || !this.schedForm.date) {
+      if (!this.schedForm.name.trim()) {
         this.schedFormError = true;
         return;
       }
       this.schedFormError = false;
-
-      const userId = this.currentUser?.id || null;
-      const api = this.getApi();
+      this.isSavingSchedule = true;
 
       try {
-        if (this.editingScheduleId) {
-          const payload = {
+        const res = await fetch(`${API_BASE}/schedules`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
             name: this.schedForm.name.trim(),
             date: this.schedForm.date,
             description: this.schedForm.description.trim(),
-            status: this.schedForm.status,
             service_time: this.schedForm.service_time.trim(),
-            updated_at: new Date().toISOString(),
-          };
-          await api.updateSchedule(this.editingScheduleId, payload);
-          const updated = await api.getScheduleById(this.editingScheduleId);
-          const idx = this.schedules.findIndex((s) => s.id === this.editingScheduleId);
-          if (idx !== -1) this.schedules.splice(idx, 1, updated);
-          this.closeScheduleModal();
-        } else {
-          const payload = {
-            name: this.schedForm.name.trim(),
-            date: this.schedForm.date,
-            description: this.schedForm.description.trim(),
             status: this.schedForm.status,
-            service_time: this.schedForm.service_time.trim(),
-            created_by: userId,
-          };
-          const newSched = await api.createSchedule(payload);
-          this.schedules.push(newSched);
-          this.selectedSchedId = newSched.id;
-          this.closeScheduleModal();
-          this.currentView = 'schedules';
-          this.mobileDetailOpen = true;
-        }
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not create schedule');
+
+        this.schedules.push({ ...data.schedule, song_count: 0 });
+        this.scheduleDetails = { ...this.scheduleDetails, [data.schedule.id]: { schedule: data.schedule, songs: [] } };
+        this.selectedSchedId = data.schedule.id;
+        this.closeScheduleModal();
+        this.currentView = 'schedules';
+        this.mobileDetailOpen = true;
       } catch (err) {
-        this.errorMessage = err.message || 'Failed to save schedule.';
-        console.error(err);
+        this.showFetchError(err);
+      } finally {
+        this.isSavingSchedule = false;
       }
     },
 
     async deleteSelectedSchedule() {
       if (!this.selectedSchedId) return;
       if (!confirm('Delete this schedule?')) return;
+      const id = this.selectedSchedId;
       try {
-        const api = this.getApi();
-        await api.deleteSchedule(this.selectedSchedId);
-        this.schedules = this.schedules.filter((s) => s.id !== this.selectedSchedId);
-        this.scheduleSongs = await api.getScheduleSongs();
+        const res = await fetch(`${API_BASE}/schedules/${id}`, { method: 'DELETE', credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not delete schedule');
+
+        this.schedules = this.schedules.filter((s) => s.id !== id);
+        const rest = { ...this.scheduleDetails };
+        delete rest[id];
+        this.scheduleDetails = rest;
         this.selectedSchedId = null;
         this.mobileDetailOpen = false;
       } catch (err) {
-        this.errorMessage = err.message || 'Failed to delete schedule.';
-        console.error(err);
+        this.showFetchError(err);
       }
     },
 
-    // ── Add song to schedule ──
+    // ── Schedule ↔ Song linking ──
     addSelectedSongToSchedule() {
       if (!this.selectedSongId) return;
       if (this.schedules.length === 0) {
@@ -914,91 +1000,52 @@ export default {
     },
 
     async confirmAddToSchedule(schedId) {
-      const sched = this.schedules.find((s) => s.id === schedId);
-      if (!sched || !this.selectedSongId) return;
-
-      const exists = this.scheduleSongs.some(
-        (ss) => ss.schedule_id === schedId && ss.song_id === this.selectedSongId && ss.is_active === 1
-      );
-      if (exists) {
-        this.showPickScheduleModal = false;
-        this.selectedSchedId = schedId;
-        this.currentView = 'schedules';
-        this.mobileDetailOpen = true;
-        return;
-      }
-
-      try {
-        const api = this.getApi();
-        const maxPos = this.scheduleSongs
-          .filter((ss) => ss.schedule_id === schedId && ss.is_active === 1)
-          .reduce((max, ss) => Math.max(max, ss.position), -1);
-
-        const payload = {
-          schedule_id: schedId,
-          song_id: this.selectedSongId,
-          position: maxPos + 1,
-          notes: '',
-          is_active: 1,
-        };
-        const newSS = await api.createScheduleSong(payload);
-        this.scheduleSongs.push(newSS);
-
-        this.showPickScheduleModal = false;
-        this.selectedSchedId = schedId;
-        this.currentView = 'schedules';
-        this.mobileDetailOpen = true;
-      } catch (err) {
-        this.errorMessage = err.message || 'Failed to add song to schedule.';
-        console.error(err);
-      }
+      if (!this.selectedSongId) return;
+      await this.addSongToScheduleApi(schedId, this.selectedSongId);
+      this.showPickScheduleModal = false;
+      this.selectedSchedId = schedId;
+      this.currentView = 'schedules';
+      this.mobileDetailOpen = true;
     },
 
     async addSongToSchedule() {
       const songId = Number(this.addSongSelectValue);
       if (!songId || !this.selectedSchedId) return;
+      await this.addSongToScheduleApi(this.selectedSchedId, songId, this.addSongNotes);
+      this.addSongSelectValue = '';
+      this.addSongNotes = '';
+    },
 
-      const exists = this.scheduleSongs.some(
-        (ss) => ss.schedule_id === this.selectedSchedId && ss.song_id === songId && ss.is_active === 1
-      );
-      if (exists) {
-        this.addSongSelectValue = '';
-        this.addSongNote = '';
-        return;
-      }
-
+    async addSongToScheduleApi(schedId, songId, notes = '') {
       try {
-        const api = this.getApi();
-        const maxPos = this.scheduleSongs
-          .filter((ss) => ss.schedule_id === this.selectedSchedId && ss.is_active === 1)
-          .reduce((max, ss) => Math.max(max, ss.position), -1);
-
-        const payload = {
-          schedule_id: this.selectedSchedId,
-          song_id: songId,
-          position: maxPos + 1,
-          notes: this.addSongNote.trim(),
-          is_active: 1,
-        };
-        const newSS = await api.createScheduleSong(payload);
-        this.scheduleSongs.push(newSS);
-        this.addSongSelectValue = '';
-        this.addSongNote = '';
+        const res = await fetch(`${API_BASE}/schedules/${schedId}/songs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ song_id: songId, notes }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not add song to schedule');
+        await this.loadScheduleDetail(schedId);
+        await this.refreshScheduleList();
       } catch (err) {
-        this.errorMessage = err.message || 'Failed to add song to schedule.';
-        console.error(err);
+        this.showFetchError(err);
       }
     },
 
-    async removeSongFromSchedule(schedSongId) {
+    async removeSongFromSchedule(songId) {
+      if (!this.selectedSchedId) return;
       try {
-        const api = this.getApi();
-        await api.deleteScheduleSong(schedSongId);
-        // Refresh to get re-indexed positions from DB trigger
-        this.scheduleSongs = await api.getScheduleSongs();
+        const res = await fetch(`${API_BASE}/schedules/${this.selectedSchedId}/songs/${songId}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not remove song');
+        await this.loadScheduleDetail(this.selectedSchedId);
+        await this.refreshScheduleList();
       } catch (err) {
-        this.errorMessage = err.message || 'Failed to remove song from schedule.';
-        console.error(err);
+        this.showFetchError(err);
       }
     },
 
