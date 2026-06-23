@@ -1,7 +1,7 @@
 // api/_lib/routes/songs.js
-const { Router } = require('express');
-const db = require('../db');
-const { requireAuth } = require('../middleware/auth');
+import { Router } from 'express';
+import db from '../db.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 router.use(requireAuth); // every route below requires a logged-in user
@@ -135,4 +135,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

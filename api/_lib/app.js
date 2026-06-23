@@ -1,15 +1,15 @@
 // api/_lib/app.js
 // Builds the Express app. Imported by api/index.js (the actual Vercel
-// Serverless Function) AND by scripts/dev-api.cjs (plain-Node local dev),
+// Serverless Function) AND by scripts/dev-api.mjs (plain-Node local dev),
 // so the route logic is defined exactly once.
-const express = require('express');
-const cookieParser = require('cookie-parser');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+import express from 'express';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 
-const authRoutes = require('./routes/auth');
-const songRoutes = require('./routes/songs');
-const scheduleRoutes = require('./routes/schedules');
+import authRoutes from './routes/auth.js';
+import songRoutes from './routes/songs.js';
+import scheduleRoutes from './routes/schedules.js';
 
 const app = express();
 
@@ -50,4 +50,4 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Something went wrong' });
 });
 
-module.exports = app;
+export default app;

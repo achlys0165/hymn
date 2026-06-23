@@ -1,8 +1,8 @@
 // api/_lib/routes/auth.js
-const { Router } = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const db = require('../db');
+import { Router } from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import db from '../db.js';
 
 const router = Router();
 const COOKIE_NAME = 'token';
@@ -121,4 +121,4 @@ router.get('/me', (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
