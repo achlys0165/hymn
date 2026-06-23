@@ -116,13 +116,12 @@
   pointer-events: none;
 }
 
-:deep(.particle) {
+.particle {
   position: absolute;
   border-radius: 50%;
   background: rgba(255,255,255,0.04);
   animation: floatUp linear infinite;
 }
-
 @keyframes floatUp {
   0%   { transform: translateY(110vh) scale(0.6); opacity: 0; }
   10%  { opacity: 0.6; }
