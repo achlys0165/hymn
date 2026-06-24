@@ -6,7 +6,7 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 router.use(requireAuth); // every route below requires a logged-in user
 
-const ALLOWED_CATEGORIES = ['worship', 'praise', 'hymn', 'contemporary', 'gospel', 'general'];
+const ALLOWED_CATEGORIES = ['praise_worship', 'solemn', 'devotion'];
 
 router.get('/', async (_req, res) => {
   try {
@@ -39,7 +39,7 @@ router.post('/', async (req, res) => {
     if (!title || !title.trim()) {
       return res.status(400).json({ error: 'Title is required' });
     }
-    const safeCategory = ALLOWED_CATEGORIES.includes(category) ? category : 'general';
+    const safeCategory = ALLOWED_CATEGORIES.includes(category) ? category : 'praise_worship';
 
     // db.execute with a positional args array is parameterized by the
     // Turso/libSQL client itself — values are never string-concatenated
@@ -78,7 +78,7 @@ router.put('/:id', async (req, res) => {
     if (!title || !title.trim()) {
       return res.status(400).json({ error: 'Title is required' });
     }
-    const safeCategory = ALLOWED_CATEGORIES.includes(category) ? category : 'general';
+    const safeCategory = ALLOWED_CATEGORIES.includes(category) ? category : 'praise_worship';
 
     // Note: the trg_song_version_history trigger in your schema
     // automatically snapshots the OLD lyrics into song_versions whenever

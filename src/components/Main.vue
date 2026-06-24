@@ -12,7 +12,10 @@
         </button>
         <div class="logo-area">
           <div class="logo-mark">
-            <img src="/Logo.png" alt="Hymn Logo" width="28" height="28" class="rounded-md"/> 
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M2 14V7l6-5 6 5v7H2z" stroke="#1a0a1a" stroke-width="1.4" fill="none"/>
+              <rect x="5.5" y="9" width="5" height="5" rx="0.5" fill="#1a0a1a"/>
+            </svg>
           </div>
           <span class="logo-name">Hymn</span>
         </div>
@@ -145,7 +148,7 @@
                   <div class="song-row-info">
                     <div class="song-row-title">{{ song.title }}</div>
                     <div class="song-row-meta">
-                      {{ song.artist || 'Unknown artist' }}<span v-if="song.key_signature"> · Key {{ song.key_signature }}</span>
+                      {{ song.artist || 'Unknown artist' }}
                     </div>
                   </div>
                   <div class="song-row-actions">
@@ -208,10 +211,8 @@
                 <div class="song-detail-title-group">
                   <div class="song-detail-name">{{ selectedSong.title }}</div>
                   <div class="song-detail-artist">{{ selectedSong.artist || 'Unknown artist' }}</div>
-                  <div v-if="selectedSong.category || selectedSong.key_signature || selectedSong.tempo" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
-                    <span v-if="selectedSong.category" class="badge badge-pink">{{ selectedSong.category }}</span>
-                    <span v-if="selectedSong.key_signature" class="badge badge-pink">Key {{ selectedSong.key_signature }}</span>
-                    <span v-if="selectedSong.tempo" class="badge badge-pink">{{ selectedSong.tempo }}</span>
+                  <div v-if="selectedSong.category" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
+                    <span class="badge badge-pink">{{ categoryLabel(selectedSong.category) }}</span>
                   </div>
                 </div>
                 <div class="detail-actions">
@@ -342,7 +343,7 @@
                     <div class="sched-song-info">
                       <div class="sched-song-title">{{ item.title }}</div>
                       <div class="sched-song-artist">
-                        {{ item.artist || 'Unknown artist' }}<span v-if="item.key_signature"> · Key {{ item.key_signature }}</span>
+                        {{ item.artist || 'Unknown artist' }}
                       </div>
                       <div v-if="item.notes" style="font-size:11px; color:#8a7e8a; margin-top:2px;">{{ item.notes }}</div>
                     </div>
@@ -424,38 +425,13 @@
               <input class="field-input" type="text" v-model="songForm.artist" placeholder="e.g. Sinach"/>
             </div>
 
-            <div style="display:flex; gap:12px;">
-              <div style="flex:1;">
-                <div class="field-label">Category</div>
-                <select class="field-input" v-model="songForm.category">
-                  <option value="general">General</option>
-                  <option value="worship">Worship</option>
-                  <option value="praise">Praise</option>
-                  <option value="hymn">Hymn</option>
-                  <option value="contemporary">Contemporary</option>
-                  <option value="gospel">Gospel</option>
-                </select>
-              </div>
-              <div style="flex:1;">
-                <div class="field-label">Key Signature</div>
-                <input class="field-input" type="text" v-model="songForm.key_signature" placeholder="e.g. G"/>
-              </div>
-            </div>
-
-            <div style="display:flex; gap:12px;">
-              <div style="flex:1;">
-                <div class="field-label">Tempo</div>
-                <input class="field-input" type="text" v-model="songForm.tempo" placeholder="e.g. 72 BPM"/>
-              </div>
-              <div style="flex:1;">
-                <div class="field-label">Time Signature</div>
-                <input class="field-input" type="text" v-model="songForm.time_signature" placeholder="e.g. 4/4"/>
-              </div>
-            </div>
-
             <div>
-              <div class="field-label">Tags</div>
-              <input class="field-input" type="text" v-model="songForm.tags" placeholder="comma-separated, e.g. christmas, communion"/>
+              <div class="field-label">Category</div>
+              <select class="field-input" v-model="songForm.category">
+                <option value="praise_worship">Praise &amp; Worship</option>
+                <option value="solemn">Solemn</option>
+                <option value="devotion">Devotion</option>
+              </select>
             </div>
 
             <div>
@@ -612,8 +588,7 @@ export default {
       // directly, so there's no translation layer between the UI and
       // what gets sent to the API.
       songForm: {
-        title: '', artist: '', lyrics: '',
-        category: 'general', key_signature: '', tempo: '', time_signature: '', tags: '',
+        title: '', artist: '', lyrics: '', category: 'praise_worship',
       },
       schedForm: { name: '', date: '', description: '', service_time: '', status: 'draft' },
       songFormError: false,
@@ -812,10 +787,7 @@ export default {
     // ── Song CRUD ──
     openSongModal() {
       this.editingSongId = null;
-      this.songForm = {
-        title: '', artist: '', lyrics: '',
-        category: 'general', key_signature: '', tempo: '', time_signature: '', tags: '',
-      };
+      this.songForm = { title: '', artist: '', lyrics: '', category: 'praise_worship' };
       this.songFormError = false;
       this.showSongModal = true;
     },
@@ -839,10 +811,6 @@ export default {
         artist: this.songForm.artist.trim(),
         lyrics: this.songForm.lyrics.trim(),
         category: this.songForm.category,
-        key_signature: this.songForm.key_signature.trim(),
-        tempo: this.songForm.tempo.trim(),
-        time_signature: this.songForm.time_signature.trim(),
-        tags: this.songForm.tags.trim(),
       };
 
       try {
@@ -882,11 +850,7 @@ export default {
         title: song.title,
         artist: song.artist || '',
         lyrics: song.lyrics || '',
-        category: song.category || 'general',
-        key_signature: song.key_signature || '',
-        tempo: song.tempo || '',
-        time_signature: song.time_signature || '',
-        tags: song.tags || '',
+        category: song.category || 'praise_worship',
       };
       this.songFormError = false;
       this.showSongModal = true;
@@ -1047,6 +1011,15 @@ export default {
     },
 
     // ── Helpers ──
+    categoryLabel(value) {
+      const labels = {
+        praise_worship: 'Praise & Worship',
+        solemn: 'Solemn',
+        devotion: 'Devotion',
+      };
+      return labels[value] || value;
+    },
+
     formatDate(dateStr) {
       if (!dateStr) return 'No date set';
       const d = new Date(dateStr + 'T00:00:00');
