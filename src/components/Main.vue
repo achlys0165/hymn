@@ -12,10 +12,7 @@
         </button>
         <div class="logo-area">
           <div class="logo-mark">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <path d="M2 14V7l6-5 6 5v7H2z" stroke="#1a0a1a" stroke-width="1.4" fill="none"/>
-              <rect x="5.5" y="9" width="5" height="5" rx="0.5" fill="#1a0a1a"/>
-            </svg>
+            <img src="/Logo.png" alt="Hymn Logo" width="28" height="28" class="rounded-md"/> 
           </div>
           <span class="logo-name">Hymn</span>
         </div>
