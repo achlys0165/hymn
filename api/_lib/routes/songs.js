@@ -34,28 +34,21 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { title, artist, lyrics, category, key_signature, tempo, time_signature, tags } = req.body;
+    const { title, artist, lyrics, category } = req.body;
 
     if (!title || !title.trim()) {
       return res.status(400).json({ error: 'Title is required' });
     }
     const safeCategory = ALLOWED_CATEGORIES.includes(category) ? category : 'praise_worship';
 
-    // db.execute with a positional args array is parameterized by the
-    // Turso/libSQL client itself — values are never string-concatenated
-    // into the SQL, which is what prevents SQL injection here.
     const result = await db.execute({
-      sql: `INSERT INTO songs (title, artist, lyrics, category, key_signature, tempo, time_signature, tags, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO songs (title, artist, lyrics, category, created_by)
+            VALUES (?, ?, ?, ?, ?)`,
       args: [
         title.trim(),
         artist?.trim() || null,
         lyrics?.trim() || '',
         safeCategory,
-        key_signature?.trim() || null,
-        tempo?.trim() || null,
-        time_signature?.trim() || null,
-        tags?.trim() || null,
         req.user.sub,
       ],
     });
@@ -73,29 +66,22 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { title, artist, lyrics, category, key_signature, tempo, time_signature, tags } = req.body;
+    const { title, artist, lyrics, category } = req.body;
 
     if (!title || !title.trim()) {
       return res.status(400).json({ error: 'Title is required' });
     }
     const safeCategory = ALLOWED_CATEGORIES.includes(category) ? category : 'praise_worship';
 
-    // Note: the trg_song_version_history trigger in your schema
-    // automatically snapshots the OLD lyrics into song_versions whenever
-    // this UPDATE changes the lyrics column — no extra code needed here.
     await db.execute({
       sql: `UPDATE songs
-            SET title = ?, artist = ?, lyrics = ?, category = ?, key_signature = ?, tempo = ?, time_signature = ?, tags = ?
+            SET title = ?, artist = ?, lyrics = ?, category = ?
             WHERE id = ?`,
       args: [
         title.trim(),
         artist?.trim() || null,
         lyrics?.trim() || '',
         safeCategory,
-        key_signature?.trim() || null,
-        tempo?.trim() || null,
-        time_signature?.trim() || null,
-        tags?.trim() || null,
         req.params.id,
       ],
     });
