@@ -44,7 +44,6 @@ router.get('/:id', async (req, res) => {
         FROM schedule_songs ss
         JOIN songs so ON so.id = ss.song_id
         WHERE ss.schedule_id = ?
-        ORDER BY ss.position ASC
       `,
       args: [req.params.id],
     });
