@@ -16,7 +16,7 @@ router.get('/', async (_req, res) => {
       SELECT s.id, s.name, s.date, s.description, s.status, s.service_time,
              COUNT(ss.id) AS song_count
       FROM schedules s
-      LEFT JOIN schedule_songs ss ON s.id = ss.schedule_id AND ss.is_active = 1
+      LEFT JOIN schedule_songs ss ON s.id = ss.schedule_id
       GROUP BY s.id
       ORDER BY s.date DESC
     `);
@@ -28,7 +28,7 @@ router.get('/', async (_req, res) => {
 });
 
 // Detail view — schedule info + its ordered lineup of songs, joined so
-// the frontend gets title/artist/key/tempo without a second round trip.
+// the frontend gets title/artist/category without a second round trip.
 router.get('/:id', async (req, res) => {
   try {
     const sched = await db.execute({
@@ -40,10 +40,10 @@ router.get('/:id', async (req, res) => {
     const lineup = await db.execute({
       sql: `
         SELECT ss.song_id, ss.position, ss.notes,
-               so.title, so.artist, so.key_signature, so.tempo
+               so.title, so.artist, so.category
         FROM schedule_songs ss
         JOIN songs so ON so.id = ss.song_id
-        WHERE ss.schedule_id = ? AND ss.is_active = 1
+        WHERE ss.schedule_id = ?
         ORDER BY ss.position ASC
       `,
       args: [req.params.id],
