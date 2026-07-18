@@ -1622,6 +1622,104 @@ textarea.field-input {
   line-height: 1.5;
 }
 
+/* ── Lyrics structured editor ── */
+.lyrics-textarea {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  min-height: 160px;
+  line-height: 1.6;
+}
+
+.lyrics-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lyrics-tag-btns {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.tag-btn {
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  color: #0e0a0e;
+  transition: opacity 0.1s ease;
+}
+.tag-btn:hover { opacity: 0.8; }
+
+.tag-verse   { background: #4A90E2; }
+.tag-chorus  { background: #50E3C2; }
+.tag-bridge  { background: #F8E71C; }
+.tag-pre     { background: #9B59B6; color: #fff; }
+.tag-intro   { background: #1ABC9C; }
+.tag-outro   { background: #95a5a6; }
+
+.lyrics-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #6a5e6a;
+  line-height: 1.5;
+}
+
+.lyrics-hint code {
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 10px;
+  color: #c28baa;
+}
+
+/* Live desktop preview strips */
+.lyrics-preview {
+  margin-top: 10px;
+}
+
+.lyrics-preview-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #6a5e6a;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.lyrics-preview-sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Section badge colours mirror the desktop app exactly */
+.section-badge {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0e0a0e;
+  cursor: default;
+}
+
+.section-verse     { background: #4A90E2; }
+.section-chorus    { background: #50E3C2; }
+.section-bridge    { background: #F8E71C; }
+.section-pre-chorus { background: #9B59B6; color: #fff; }
+.section-tag       { background: #E67E22; }
+.section-intro     { background: #1ABC9C; }
+.section-outro     { background: #34495E; color: #ccc; }
+
 /* ── Pick schedule modal ── */
 .pick-schedule-body {
   display: flex;

@@ -461,12 +461,44 @@
             </div>
 
             <div>
-              <div class="field-label">Lyrics</div>
+              <div class="lyrics-editor-header">
+                <span class="field-label" style="margin-bottom:0;">Lyrics</span>
+                <div class="lyrics-tag-btns">
+                  <button type="button" class="tag-btn tag-verse"    @click="insertTag('Verse')">Verse</button>
+                  <button type="button" class="tag-btn tag-chorus"   @click="insertTag('Chorus')">Chorus</button>
+                  <button type="button" class="tag-btn tag-bridge"   @click="insertTag('Bridge')">Bridge</button>
+                  <button type="button" class="tag-btn tag-pre"      @click="insertTag('Pre-Chorus')">Pre-C</button>
+                  <button type="button" class="tag-btn tag-intro"    @click="insertTag('Intro')">Intro</button>
+                  <button type="button" class="tag-btn tag-outro"    @click="insertTag('Outro')">Outro</button>
+                </div>
+              </div>
+
               <textarea
-                class="field-input"
+                ref="lyricsTextarea"
+                class="field-input lyrics-textarea"
                 v-model="songForm.lyrics"
-                placeholder="Paste or type lyrics here…&#10;&#10;Use blank lines to separate verses and choruses."
+                placeholder="[Verse 1]&#10;Line one&#10;Line two&#10;&#10;[Chorus]&#10;Line one&#10;Line two&#10;&#10;[Verse 2]&#10;..."
+                spellcheck="false"
               ></textarea>
+
+              <!-- Format hint -->
+              <div class="lyrics-hint">
+                Wrap each section in brackets, e.g. <code>[Verse 1]</code>, <code>[Chorus]</code>, <code>[Bridge]</code>. Separate sections with a blank line. The desktop app uses these to colour-code and navigate sections.
+              </div>
+
+              <!-- Live section preview -->
+              <div v-if="parsedSections.length > 0" class="lyrics-preview">
+                <div class="lyrics-preview-label">Desktop preview</div>
+                <div class="lyrics-preview-sections">
+                  <span
+                    v-for="(sec, i) in parsedSections"
+                    :key="i"
+                    class="section-badge"
+                    :class="'section-' + sec.type"
+                    :title="sec.lines.join('\n')"
+                  >{{ sectionLabel(sec) }}</span>
+                </div>
+              </div>
             </div>
           </div>
           <div class="modal-footer">
@@ -707,6 +739,63 @@ export default {
           s.title.toLowerCase().includes(q) ||
           (s.artist || '').toLowerCase().includes(q)
       );
+    },
+
+    // Mirrors the desktop app's detectTag() so the preview matches exactly
+    // what the desktop will render. Keep this in sync with any changes
+    // to the desktop parser.
+    parsedSections() {
+      const lyrics = this.songForm.lyrics || '';
+      if (!lyrics.trim()) return [];
+
+      const typeMap = {
+        'pre-chorus': 'pre-chorus', 'pre chorus': 'pre-chorus',
+        'prechorus': 'pre-chorus', 'pc': 'pre-chorus', 'p.c.': 'pre-chorus',
+        'chorus': 'chorus', 'refrain': 'chorus', 'c': 'chorus',
+        'verse': 'verse', 'v': 'verse',
+        'bridge': 'bridge', 'b': 'bridge',
+        'tag': 'tag', 't': 'tag',
+        'intro': 'intro', 'i': 'intro',
+        'outro': 'outro', 'ending': 'outro', 'o': 'outro',
+      };
+
+      function detectTag(line) {
+        if (!line || typeof line !== 'string') return null;
+        let text = line.trim();
+        const bracketMatch = text.match(/^\[(.*?)\]$/);
+        if (bracketMatch) text = bracketMatch[1];
+        text = text.toLowerCase().replace(/\s+/g, ' ').trim();
+        const match = text.match(/^([a-z\s.\-]+?)\s*(\d+)?$/);
+        if (!match) return null;
+        const rawType = match[1].trim();
+        const num = match[2] ? parseInt(match[2], 10) : null;
+        if (typeMap[rawType]) return { type: typeMap[rawType], number: num, label: line.trim() };
+        for (const [key, value] of Object.entries(typeMap)) {
+          if (rawType === key || rawType.startsWith(key + ' ')) {
+            return { type: value, number: num, label: line.trim() };
+          }
+        }
+        return null;
+      }
+
+      const lines = lyrics.split('\n');
+      const sections = [];
+      let current = null;
+
+      for (const line of lines) {
+        const tag = detectTag(line);
+        if (tag) {
+          if (current) sections.push(current);
+          current = { ...tag, label: line.trim(), lines: [] };
+        } else if (current) {
+          if (line.trim()) current.lines.push(line);
+        } else if (line.trim()) {
+          // Untagged content — treat as verse
+          current = { type: 'verse', number: null, label: 'Verse', lines: [line] };
+        }
+      }
+      if (current) sections.push(current);
+      return sections;
     },
 
     selectedSong() {
@@ -1145,6 +1234,55 @@ export default {
       // Clicking the same song again collapses it; clicking a different
       // one collapses the previous and expands the new one.
       this.expandedSongId = this.expandedSongId === songId ? null : songId;
+    },
+
+    // Inserts a section tag at the cursor position in the lyrics textarea.
+    // Auto-increments the number for Verse/Bridge/Pre-Chorus so you get
+    // [Verse 1], [Verse 2], etc. without having to type the number.
+    insertTag(type) {
+      const ta = this.$refs.lyricsTextarea;
+      if (!ta) return;
+
+      // Count how many of this type already exist in the lyrics
+      const existing = (this.parsedSections || []).filter(
+        (s) => s.type === type.toLowerCase().replace(' ', '-')
+      );
+      const needsNumber = ['verse', 'bridge', 'pre-chorus'].includes(
+        type.toLowerCase().replace(' ', '-')
+      );
+      const tag = needsNumber
+        ? `[${type} ${existing.length + 1}]`
+        : `[${type}]`;
+
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const before = this.songForm.lyrics.slice(0, start);
+      const after = this.songForm.lyrics.slice(end);
+
+      // Add a blank line before the tag if we're not at the start
+      const prefix = before.length > 0 && !before.endsWith('\n\n') ? '\n\n' : '';
+      const insertion = `${prefix}${tag}\n`;
+
+      this.songForm.lyrics = before + insertion + after;
+
+      // Move cursor to just after the inserted tag
+      this.$nextTick(() => {
+        const pos = start + insertion.length;
+        ta.focus();
+        ta.setSelectionRange(pos, pos);
+      });
+    },
+
+    // Mirrors the desktop app's sectionLabel() exactly
+    sectionLabel(section) {
+      const type = section.type || 'verse';
+      const num = section.label?.match(/\d+/)?.[0] || '';
+      const typeMap = {
+        'verse': 'V', 'chorus': 'C', 'bridge': 'B',
+        'pre-chorus': 'PC', 'tag': 'T', 'intro': 'I', 'outro': 'O',
+      };
+      const abbr = typeMap[type] || type.charAt(0).toUpperCase();
+      return num ? `${abbr}${num}` : abbr;
     },
 
     categoryLabel(value) {
