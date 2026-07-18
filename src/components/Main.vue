@@ -409,7 +409,7 @@
                       :value="song.id"
                     >{{ song.title }}{{ song.artist ? ' — ' + song.artist : '' }}</option>
                   </select>
-                  <button class="btn btn-accent btn-sm" @click="addSongToSchedule()" style="flex-shrink:0;">Add</button>
+                  <button class="btn btn-accent btn-sm" @click="addSongToSchedule()">Add</button>
                 </div>
               </div>
             </div>
