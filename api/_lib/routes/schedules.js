@@ -27,8 +27,8 @@ router.get('/', async (_req, res) => {
   }
 });
 
-// Detail view — schedule info + its ordered lineup of songs, joined so
-// the frontend gets title/artist/category without a second round trip.
+// Detail view — schedule info + its ordered lineup of songs with lyrics
+// so the frontend can expand them inline without a second round trip.
 router.get('/:id', async (req, res) => {
   try {
     const sched = await db.execute({
@@ -40,10 +40,11 @@ router.get('/:id', async (req, res) => {
     const lineup = await db.execute({
       sql: `
         SELECT ss.song_id, ss.position, ss.notes,
-               so.title, so.artist, so.category
+               so.title, so.artist, so.category, so.lyrics
         FROM schedule_songs ss
         JOIN songs so ON so.id = ss.song_id
         WHERE ss.schedule_id = ?
+        ORDER BY ss.position ASC
       `,
       args: [req.params.id],
     });

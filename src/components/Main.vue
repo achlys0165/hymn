@@ -12,7 +12,10 @@
         </button>
         <div class="logo-area">
           <div class="logo-mark">
-            <img src="/Logo.png" alt="Hymn Logo" width="28" height="28" class="rounded-md"/> 
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M2 14V7l6-5 6 5v7H2z" stroke="#1a0a1a" stroke-width="1.4" fill="none"/>
+              <rect x="5.5" y="9" width="5" height="5" rx="0.5" fill="#1a0a1a"/>
+            </svg>
           </div>
           <span class="logo-name">Hymn</span>
         </div>
@@ -335,30 +338,60 @@
                     v-for="(item, index) in selectedScheduleSongs"
                     :key="item.song_id"
                     class="sched-song-item"
+                    :class="{ 'sched-song-expanded': expandedSongId === item.song_id }"
                   >
-                    <div class="sched-song-num">{{ index + 1 }}</div>
-                    <div class="sched-song-info">
-                      <div class="sched-song-title">{{ item.title }}</div>
-                      <div class="sched-song-artist">
-                        {{ item.artist || 'Unknown artist' }}
+                    <!-- Top row: number, info, controls -->
+                    <div class="sched-song-row">
+                      <div class="sched-song-num">{{ index + 1 }}</div>
+                      <div class="sched-song-info" @click="toggleLyrics(item.song_id)" style="cursor:pointer; flex:1;">
+                        <div class="sched-song-title">{{ item.title }}</div>
+                        <div class="sched-song-artist">
+                          {{ item.artist || 'Unknown artist' }}
+                        </div>
+                        <div v-if="item.notes" style="font-size:11px; color:#8a7e8a; margin-top:2px;">{{ item.notes }}</div>
                       </div>
-                      <div v-if="item.notes" style="font-size:11px; color:#8a7e8a; margin-top:2px;">{{ item.notes }}</div>
+                      <!-- Expand toggle -->
+                      <button
+                        class="icon-btn lyrics-toggle-btn"
+                        :class="{ active: expandedSongId === item.song_id }"
+                        @click="toggleLyrics(item.song_id)"
+                        :title="expandedSongId === item.song_id ? 'Hide lyrics' : 'Show lyrics'"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                          <path
+                            :d="expandedSongId === item.song_id
+                              ? 'M2 8.5l4.5-4.5 4.5 4.5'
+                              : 'M2 4.5l4.5 4.5 4.5-4.5'"
+                            stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </button>
+                      <div class="drag-handle" aria-hidden="true">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                          <circle cx="4" cy="3" r="1" fill="currentColor"/>
+                          <circle cx="8" cy="3" r="1" fill="currentColor"/>
+                          <circle cx="4" cy="6" r="1" fill="currentColor"/>
+                          <circle cx="8" cy="6" r="1" fill="currentColor"/>
+                          <circle cx="4" cy="9" r="1" fill="currentColor"/>
+                          <circle cx="8" cy="9" r="1" fill="currentColor"/>
+                        </svg>
+                      </div>
+                      <button class="icon-btn danger" @click="removeSongFromSchedule(item.song_id)" title="Remove">
+                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                          <path d="M2 3.5h9M5 3.5V2h3v1.5M10 3.5l-.7 7.5H3.7L3 3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                        </svg>
+                      </button>
                     </div>
-                    <div class="drag-handle" aria-hidden="true">
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <circle cx="4" cy="3" r="1" fill="currentColor"/>
-                        <circle cx="8" cy="3" r="1" fill="currentColor"/>
-                        <circle cx="4" cy="6" r="1" fill="currentColor"/>
-                        <circle cx="8" cy="6" r="1" fill="currentColor"/>
-                        <circle cx="4" cy="9" r="1" fill="currentColor"/>
-                        <circle cx="8" cy="9" r="1" fill="currentColor"/>
-                      </svg>
-                    </div>
-                    <button class="icon-btn danger" @click="removeSongFromSchedule(item.song_id)" title="Remove">
-                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                        <path d="M2 3.5h9M5 3.5V2h3v1.5M10 3.5l-.7 7.5H3.7L3 3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-                      </svg>
-                    </button>
+
+                    <!-- Lyrics panel — expands below when toggled -->
+                    <Transition name="lyrics-expand">
+                      <div
+                        v-if="expandedSongId === item.song_id"
+                        class="sched-song-lyrics"
+                      >
+                        <div v-if="item.lyrics" class="lyrics-text">{{ item.lyrics }}</div>
+                        <div v-else class="no-lyrics">No lyrics added for this song.</div>
+                      </div>
+                    </Transition>
                   </div>
                 </div>
                 <div v-if="selectedScheduleSongs.length === 0" class="empty-list-msg" style="padding: 32px 0;">
@@ -574,6 +607,7 @@ export default {
       songSearch: '',
       addSongSelectValue: '',
       addSongNotes: '',
+      expandedSongId: null,
 
       // Modals
       showSongModal: false,
@@ -778,6 +812,7 @@ export default {
       this.mobileDetailOpen = true;
       this.addSongSelectValue = '';
       this.addSongNotes = '';
+      this.expandedSongId = null;
       await this.loadScheduleDetail(id);
     },
 
@@ -1008,6 +1043,12 @@ export default {
     },
 
     // ── Helpers ──
+    toggleLyrics(songId) {
+      // Clicking the same song again collapses it; clicking a different
+      // one collapses the previous and expands the new one.
+      this.expandedSongId = this.expandedSongId === songId ? null : songId;
+    },
+
     categoryLabel(value) {
       const labels = {
         praise_worship: 'Praise & Worship',

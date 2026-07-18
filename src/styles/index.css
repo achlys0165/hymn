@@ -116,7 +116,7 @@
   pointer-events: none;
 }
 
-.particle {
+:deep(.particle) {
   position: absolute;
   border-radius: 50%;
   background: rgba(255,255,255,0.04);
@@ -690,9 +690,14 @@ select.field-input option {
 .panel-active-mobile {
   display: flex;
   position: fixed;
-  inset: 52px 0 0 0;
+  top: 52px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  bottom: env(safe-area-inset-bottom, 0px);
   z-index: 30;
   background: #0e0a0e;
+  flex-direction: column;
 }
 
 @media (min-width: 768px) {
@@ -1002,6 +1007,9 @@ select.field-input option {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .song-detail-body {
@@ -1127,26 +1135,40 @@ select.field-input option {
   flex-direction: column;
   flex: 1;
   overflow: hidden;
+  min-height: 0;
 }
 
 .schedule-detail-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 14px 16px;
   border-bottom: 1px solid rgba(255,255,255,0.04);
   flex-shrink: 0;
-  gap: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 480px) {
+  .schedule-detail-header {
+    padding: 16px 20px;
+    flex-wrap: nowrap;
+  }
 }
 
 .schedule-detail-name {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: #e8e2e8;
+  line-height: 1.3;
+}
+
+@media (min-width: 480px) {
+  .schedule-detail-name { font-size: 18px; }
 }
 
 .schedule-detail-date {
-  font-size: 13px;
+  font-size: 12px;
   color: #8a7e8a;
   margin-top: 4px;
 }
@@ -1168,7 +1190,13 @@ select.field-input option {
 .sched-songs-body {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 20px;
+  padding: 10px 12px;
+  /* Ensure the scroll area doesn't swallow the add bar */
+  min-height: 0;
+}
+
+@media (min-width: 480px) {
+  .sched-songs-body { padding: 12px 20px; }
 }
 
 .schedule-songs {
@@ -1179,12 +1207,25 @@ select.field-input option {
 
 .sched-song-item {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  flex-direction: column;
   border-radius: 8px;
   background: rgba(255,255,255,0.02);
   border: 1px solid rgba(255,255,255,0.03);
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.sched-song-item.sched-song-expanded {
+  border-color: rgba(194, 139, 170, 0.2);
+  background: rgba(194, 139, 170, 0.03);
+}
+
+/* The always-visible top row inside each song item */
+.sched-song-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
 }
 
 .sched-song-num {
@@ -1221,6 +1262,53 @@ select.field-input option {
   margin-top: 2px;
 }
 
+/* Chevron button that toggles the lyrics panel */
+.lyrics-toggle-btn {
+  flex-shrink: 0;
+  color: #8a7e8a;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.lyrics-toggle-btn:hover,
+.lyrics-toggle-btn.active {
+  color: #c28baa;
+}
+
+/* Lyrics panel that expands below the row */
+.sched-song-lyrics {
+  padding: 0 16px 14px 52px; /* left-indent aligns with the song title */
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+.sched-song-lyrics .lyrics-text {
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #c8bec8;
+  padding-top: 12px;
+}
+
+.sched-song-lyrics .no-lyrics {
+  font-size: 12px;
+  color: #6a5e6a;
+  padding-top: 10px;
+  font-style: italic;
+}
+
+/* Smooth slide-down / slide-up transition for the lyrics panel */
+.lyrics-expand-enter-active,
+.lyrics-expand-leave-active {
+  transition: max-height 0.25s ease, opacity 0.2s ease;
+  max-height: 600px;
+  overflow: hidden;
+}
+
+.lyrics-expand-enter-from,
+.lyrics-expand-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
 .drag-handle {
   color: #4a3e4a;
   cursor: grab;
@@ -1233,15 +1321,34 @@ select.field-input option {
 
 .add-song-bar {
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  padding: 12px 20px;
-  border-top: 1px solid rgba(255,255,255,0.04);
+  padding: 10px 12px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgba(255,255,255,0.06);
   flex-shrink: 0;
+  background: rgba(14, 10, 14, 0.95);
+}
+
+/* On wider phones and up: put select + Add on one row,
+   Notes on a second row (or inline if there's room) */
+@media (min-width: 480px) {
+  .add-song-bar {
+    padding: 10px 20px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.add-song-bar-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .add-song-select {
   flex: 1;
-  padding: 8px 12px;
+  min-width: 0;
+  padding: 9px 12px;
   font-size: 13px;
   font-family: inherit;
   color: #e8e2e8;
@@ -1260,6 +1367,21 @@ select.field-input option {
 .add-song-select:focus {
   border-color: rgba(194, 139, 170, 0.4);
 }
+
+.add-song-notes {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #e8e2e8;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  outline: none;
+}
+
+.add-song-notes::placeholder { color: #6a5e6a; }
+.add-song-notes:focus { border-color: rgba(194, 139, 170, 0.4); }
 
 /* ── Modals ── */
 .modal-overlay {
