@@ -1445,6 +1445,145 @@ select.field-input option {
   flex-shrink: 0;
 }
 
+/* Divider between schedule fields and song picker */
+.modal-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: 4px 0 12px;
+}
+
+/* Search bar inside the modal */
+.modal-song-search-wrap {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.modal-song-search-wrap .search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6a5e6a;
+  pointer-events: none;
+}
+
+.modal-song-search-input {
+  width: 100%;
+  padding: 8px 12px 8px 32px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #e8e2e8;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.modal-song-search-input::placeholder { color: #6a5e6a; }
+.modal-song-search-input:focus { border-color: rgba(194,139,170,0.4); }
+
+/* Scrollable song list */
+.modal-song-list {
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.01);
+}
+
+.modal-song-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.modal-song-row:last-child { border-bottom: none; }
+
+.modal-song-row:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.modal-song-row.modal-song-selected {
+  background: rgba(194,139,170,0.07);
+}
+
+.modal-song-row-info { flex: 1; min-width: 0; }
+
+.modal-song-row-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #e8e2e8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modal-song-row-artist {
+  font-size: 11px;
+  color: #6a5e6a;
+  margin-top: 1px;
+}
+
+.modal-song-row-check {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.modal-song-empty {
+  padding: 16px 12px;
+  font-size: 12px;
+  color: #6a5e6a;
+  text-align: center;
+}
+
+/* Selected songs summary + removable tags */
+.modal-selected-songs {
+  margin-top: 10px;
+}
+
+.modal-selected-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #c28baa;
+  margin-bottom: 8px;
+}
+
+.modal-selected-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.modal-selected-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px 4px 10px;
+  background: rgba(194,139,170,0.12);
+  border: 1px solid rgba(194,139,170,0.2);
+  border-radius: 20px;
+  font-size: 12px;
+  color: #c28baa;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.modal-selected-tag:hover {
+  background: rgba(194,139,170,0.2);
+}
+
 /* ── Form fields ── */
 .field-label {
   font-size: 12px;

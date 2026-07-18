@@ -399,7 +399,7 @@
                 </div>
               </div>
               <div class="add-song-bar">
-                <!-- Row 1: dropdown + Add button (always visible together) -->
+                <!-- Dropdown + Add button always on one row -->
                 <div class="add-song-bar-row">
                   <select class="add-song-select" v-model="addSongSelectValue">
                     <option value="">— Select a song to add —</option>
@@ -411,13 +411,6 @@
                   </select>
                   <button class="btn btn-accent btn-sm" @click="addSongToSchedule()" style="flex-shrink:0;">Add</button>
                 </div>
-                <!-- Row 2: optional notes -->
-                <input
-                  class="add-song-notes"
-                  type="text"
-                  v-model="addSongNotes"
-                  placeholder="Notes (optional)"
-                />
               </div>
             </div>
           </div>
@@ -489,7 +482,7 @@
     <!-- Add Schedule Modal -->
     <Transition name="modal">
       <div v-if="showScheduleModal" class="modal-overlay" @click.self="closeScheduleModal()">
-        <div class="modal modal-sm">
+        <div class="modal">
           <div class="modal-header">
             <span class="modal-title">New Schedule</span>
             <button class="icon-btn" @click="closeScheduleModal()">
@@ -499,6 +492,8 @@
             </button>
           </div>
           <div class="modal-body">
+
+            <!-- Schedule details -->
             <div>
               <div class="field-label">Schedule Name *</div>
               <input
@@ -529,10 +524,76 @@
                 <option value="archived">Archived</option>
               </select>
             </div>
-            <div>
-              <div class="field-label">Description</div>
-              <input class="field-input" type="text" v-model="schedForm.description" placeholder="Optional notes about this service"/>
+
+            <!-- Song picker -->
+            <div class="modal-divider"></div>
+            <div class="field-label" style="margin-bottom:8px;">Add Songs</div>
+
+            <!-- Search -->
+            <div class="modal-song-search-wrap">
+              <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/>
+                <path d="M10 10l2.5 2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+              </svg>
+              <input
+                type="text"
+                v-model="schedSongSearch"
+                placeholder="Search songs to add…"
+                class="modal-song-search-input"
+              />
             </div>
+
+            <!-- Song results list -->
+            <div class="modal-song-list">
+              <div
+                v-for="song in schedSongSearchResults"
+                :key="song.id"
+                class="modal-song-row"
+                :class="{ 'modal-song-selected': schedFormSongs.some(s => s.id === song.id) }"
+                @click="toggleScheduleSong(song)"
+              >
+                <div class="modal-song-row-info">
+                  <div class="modal-song-row-title">{{ song.title }}</div>
+                  <div class="modal-song-row-artist">{{ song.artist || 'Unknown artist' }}</div>
+                </div>
+                <div class="modal-song-row-check">
+                  <svg v-if="schedFormSongs.some(s => s.id === song.id)" width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M2.5 7l3.5 3.5 5.5-6" stroke="#c28baa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+              <div v-if="songs.length === 0" class="modal-song-empty">
+                No songs in your library yet. Add songs first, then create a schedule.
+              </div>
+              <div v-else-if="schedSongSearchResults.length === 0" class="modal-song-empty">
+                No songs match "{{ schedSongSearch }}"
+              </div>
+            </div>
+
+            <!-- Selected songs preview -->
+            <div v-if="schedFormSongs.length > 0" class="modal-selected-songs">
+              <div class="modal-selected-label">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M1.5 6.5l3 3 6-6" stroke="#c28baa" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                {{ schedFormSongs.length }} song{{ schedFormSongs.length !== 1 ? 's' : '' }} selected
+              </div>
+              <div class="modal-selected-tags">
+                <span
+                  v-for="song in schedFormSongs"
+                  :key="song.id"
+                  class="modal-selected-tag"
+                  @click="toggleScheduleSong(song)"
+                  title="Click to remove"
+                >
+                  {{ song.title }}
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                  </svg>
+                </span>
+              </div>
+            </div>
+
           </div>
           <div class="modal-footer">
             <button class="btn btn-outline" @click="closeScheduleModal()">Cancel</button>
@@ -609,8 +670,10 @@ export default {
       mobileDetailOpen: false,
       songSearch: '',
       addSongSelectValue: '',
-      addSongNotes: '',
       expandedSongId: null,
+      // New schedule modal song picker state
+      schedSongSearch: '',
+      schedFormSongs: [], // [{id, title, artist}] staged to link after schedule is created
 
       // Modals
       showSongModal: false,
@@ -662,6 +725,17 @@ export default {
       if (!this.selectedSchedId) return [];
       const usedIds = new Set(this.selectedScheduleSongs.map((s) => s.song_id));
       return this.songs.filter((s) => !usedIds.has(s.id));
+    },
+
+    // Songs matching the search query in the New Schedule modal picker
+    schedSongSearchResults() {
+      const q = this.schedSongSearch.trim().toLowerCase();
+      if (!q) return this.songs;
+      return this.songs.filter(
+        (s) =>
+          s.title.toLowerCase().includes(q) ||
+          (s.artist || '').toLowerCase().includes(q)
+      );
     },
 
     userInitials() {
@@ -814,7 +888,6 @@ export default {
       this.selectedSchedId = id;
       this.mobileDetailOpen = true;
       this.addSongSelectValue = '';
-      this.addSongNotes = '';
       this.expandedSongId = null;
       await this.loadScheduleDetail(id);
     },
@@ -918,14 +991,28 @@ export default {
 
     // ── Schedule CRUD ──
     openScheduleModal() {
-      this.schedForm = { name: '', date: '', description: '', service_time: '', status: 'draft' };
+      this.schedForm = { name: '', date: '', service_time: '', status: 'draft' };
       this.schedFormError = false;
+      this.schedSongSearch = '';
+      this.schedFormSongs = [];
       this.showScheduleModal = true;
     },
 
     closeScheduleModal() {
       this.showScheduleModal = false;
       this.schedFormError = false;
+      this.schedSongSearch = '';
+      this.schedFormSongs = [];
+    },
+
+    // Toggle a song in/out of the new-schedule staging list
+    toggleScheduleSong(song) {
+      const idx = this.schedFormSongs.findIndex((s) => s.id === song.id);
+      if (idx !== -1) {
+        this.schedFormSongs.splice(idx, 1);
+      } else {
+        this.schedFormSongs.push({ id: song.id, title: song.title, artist: song.artist });
+      }
     },
 
     async saveSchedule() {
@@ -937,6 +1024,7 @@ export default {
       this.isSavingSchedule = true;
 
       try {
+        // 1. Create the schedule
         const res = await fetch(`${API_BASE}/schedules`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -944,7 +1032,6 @@ export default {
           body: JSON.stringify({
             name: this.schedForm.name.trim(),
             date: this.schedForm.date,
-            description: this.schedForm.description.trim(),
             service_time: this.schedForm.service_time.trim(),
             status: this.schedForm.status,
           }),
@@ -952,9 +1039,18 @@ export default {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Could not create schedule');
 
-        this.schedules.push({ ...data.schedule, song_count: 0 });
-        this.scheduleDetails = { ...this.scheduleDetails, [data.schedule.id]: { schedule: data.schedule, songs: [] } };
-        this.selectedSchedId = data.schedule.id;
+        const newSchedId = data.schedule.id;
+
+        // 2. Link any songs that were selected in the modal, in order
+        for (const song of this.schedFormSongs) {
+          await this.addSongToScheduleApi(newSchedId, song.id);
+        }
+
+        // 3. Reload the schedule detail so the linked songs show immediately
+        await this.loadScheduleDetail(newSchedId);
+        await this.refreshScheduleList();
+
+        this.selectedSchedId = newSchedId;
         this.closeScheduleModal();
         this.currentView = 'schedules';
         this.mobileDetailOpen = true;
@@ -1007,9 +1103,8 @@ export default {
     async addSongToSchedule() {
       const songId = Number(this.addSongSelectValue);
       if (!songId || !this.selectedSchedId) return;
-      await this.addSongToScheduleApi(this.selectedSchedId, songId, this.addSongNotes);
+      await this.addSongToScheduleApi(this.selectedSchedId, songId);
       this.addSongSelectValue = '';
-      this.addSongNotes = '';
     },
 
     async addSongToScheduleApi(schedId, songId, notes = '') {
