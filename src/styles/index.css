@@ -1340,16 +1340,15 @@ select.field-input option {
 
 .add-song-bar-row {
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  align-items: center;
   width: 100%;
   box-sizing: border-box;
 }
 
 .add-song-select {
-  flex: 1;
-  min-width: 0;
-  padding: 9px 12px;
+  width: 100%;
+  padding: 10px 12px;
   font-size: 13px;
   font-family: inherit;
   color: #e8e2e8;
@@ -1370,12 +1369,10 @@ select.field-input option {
   border-color: rgba(194, 139, 170, 0.4);
 }
 
-.add-song-bar-row .btn-accent {
-  flex-shrink: 0;
-  width: auto;
-  min-width: 64px;
-  padding-left: 16px;
-  padding-right: 16px;
+/* Add button matches the dropdown width */
+.add-song-bar-row .btn {
+  width: 100%;
+  justify-content: center;
 }
 
 /* ── Modals ── */
