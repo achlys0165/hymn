@@ -399,22 +399,25 @@
                 </div>
               </div>
               <div class="add-song-bar">
-                <select class="add-song-select" v-model="addSongSelectValue">
-                  <option value="">— Select a song to add —</option>
-                  <option
-                    v-for="song in availableSongsForSchedule"
-                    :key="song.id"
-                    :value="song.id"
-                  >{{ song.title }}{{ song.artist ? ' — ' + song.artist : '' }}</option>
-                </select>
+                <!-- Row 1: dropdown + Add button (always visible together) -->
+                <div class="add-song-bar-row">
+                  <select class="add-song-select" v-model="addSongSelectValue">
+                    <option value="">— Select a song to add —</option>
+                    <option
+                      v-for="song in availableSongsForSchedule"
+                      :key="song.id"
+                      :value="song.id"
+                    >{{ song.title }}{{ song.artist ? ' — ' + song.artist : '' }}</option>
+                  </select>
+                  <button class="btn btn-accent btn-sm" @click="addSongToSchedule()" style="flex-shrink:0;">Add</button>
+                </div>
+                <!-- Row 2: optional notes -->
                 <input
-                  class="field-input"
-                  style="flex: 0 0 130px;"
+                  class="add-song-notes"
                   type="text"
                   v-model="addSongNotes"
                   placeholder="Notes (optional)"
                 />
-                <button class="btn btn-accent btn-sm" @click="addSongToSchedule()">Add</button>
               </div>
             </div>
           </div>
