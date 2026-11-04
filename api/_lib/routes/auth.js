@@ -3,6 +3,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import db from '../db.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 const COOKIE_NAME = 'token';
@@ -13,6 +14,7 @@ const COOKIE_NAME = 'token';
 // Locally, with `vercel dev`, this is unset, so secure stays off — fine
 // for plain http://localhost.
 const isOnVercel = !!process.env.VERCEL;
+const registrationEnabled = process.env.ALLOW_PUBLIC_REGISTRATION === 'true';
 
 // A hash that never matches anything real. Comparing against it when a
 // username isn't found keeps "wrong username" and "wrong password"
@@ -31,15 +33,33 @@ function setAuthCookie(res, payload, remember) {
   });
 }
 
+async function authenticate(username, password) {
+  if (!username || !password) return null;
+  const result = await db.execute({
+    sql: 'SELECT id, username, password_hash, display_name, role, is_active FROM users WHERE username = ?',
+    args: [username.trim()],
+  });
+  const user = result.rows[0];
+  const valid = await bcrypt.compare(password, user?.password_hash || DUMMY_HASH);
+  return user && valid && Number(user.is_active) === 1 ? user : null;
+}
+
+router.get('/config', (_req, res) => {
+  res.json({ registrationEnabled });
+});
+
 router.post('/register', async (req, res) => {
+  if (!registrationEnabled) {
+    return res.status(403).json({ error: 'Public registration is disabled' });
+  }
   try {
     const { username, password, displayName } = req.body;
 
     if (!username || username.trim().length < 3) {
       return res.status(400).json({ error: 'Username must be at least 3 characters' });
     }
-    if (!password || password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (!password || password.length < 10) {
+      return res.status(400).json({ error: 'Password must be at least 10 characters' });
     }
 
     const existing = await db.execute({
@@ -72,19 +92,12 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    const result = await db.execute({
-      sql: 'SELECT id, username, password_hash, display_name, role, is_active FROM users WHERE username = ?',
-      args: [username.trim()],
-    });
-    const user = result.rows[0];
-
-    const valid = await bcrypt.compare(password, user?.password_hash || DUMMY_HASH);
-
-    if (!user || !valid || Number(user.is_active) !== 1) {
+    const user = await authenticate(username, password);
+    if (!user) {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-    setAuthCookie(res, { sub: user.id, username: user.username, role: user.role }, !!remember);
+    setAuthCookie(res, { sub: user.id }, !!remember);
 
     res.json({
       user: {
@@ -100,6 +113,39 @@ router.post('/login', async (req, res) => {
   }
 });
 
+router.post('/desktop-login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+    const user = await authenticate(username, password);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    const expiresInSeconds = 30 * 24 * 60 * 60;
+    const token = jwt.sign(
+      { sub: user.id, purpose: 'desktop-sync' },
+      process.env.JWT_SECRET,
+      { expiresIn: expiresInSeconds }
+    );
+    res.json({
+      token,
+      expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
+      user: {
+        id: user.id,
+        username: user.username,
+        displayName: user.display_name,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    console.error('Desktop login error:', err);
+    res.status(500).json({ error: 'Desktop sign-in failed' });
+  }
+});
+
 router.post('/logout', (req, res) => {
   res.clearCookie(COOKIE_NAME);
   res.json({ message: 'Logged out' });
@@ -107,18 +153,15 @@ router.post('/logout', (req, res) => {
 
 // Lets the frontend ask "am I actually still logged in?" without ever
 // touching the cookie's contents directly.
-router.get('/me', (req, res) => {
-  const token = req.cookies?.token;
-  if (!token) return res.status(401).json({ error: 'Not authenticated' });
-
-  try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    res.json({
-      user: { id: payload.sub, username: payload.username, role: payload.role },
-    });
-  } catch {
-    res.status(401).json({ error: 'Session expired' });
-  }
+router.get('/me', requireAuth, (req, res) => {
+  res.json({
+    user: {
+      id: req.user.sub,
+      username: req.user.username,
+      displayName: req.user.displayName,
+      role: req.user.role,
+    },
+  });
 });
 
 export default router;

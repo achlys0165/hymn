@@ -1,7 +1,7 @@
 // api/_lib/routes/songs.js
 import { Router } from 'express';
 import db from '../db.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 router.use(requireAuth); // every route below requires a logged-in user
@@ -32,7 +32,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requireRole('editor', 'admin'), async (req, res) => {
   try {
     const { title, artist, lyrics, category } = req.body;
 
@@ -64,7 +64,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireRole('editor', 'admin'), async (req, res) => {
   try {
     const { title, artist, lyrics, category } = req.body;
 
@@ -98,7 +98,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireRole('editor', 'admin'), async (req, res) => {
   try {
     // NOT relying on the schema's ON DELETE CASCADE here: SQLite/libSQL
     // only enforces foreign keys when PRAGMA foreign_keys=ON is set on

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hymn.app/contracts/sync-v1.schema.json",
+  "title": "Hymn Cloud Snapshot Contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "syncMode",
+    "snapshotId",
+    "generatedAt",
+    "songs",
+    "schedules",
+    "scheduleItems"
+  ],
+  "properties": {
+    "contractVersion": { "const": 1 },
+    "syncMode": { "const": "cloud-authoritative-snapshot" },
+    "snapshotId": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "songs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/song" }
+    },
+    "schedules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/schedule" }
+    },
+    "scheduleItems": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/scheduleItem" }
+    }
+  },
+  "$defs": {
+    "nullableString": { "type": ["string", "null"] },
+    "song": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "artist", "lyrics", "lyricsFormat", "category", "createdBy", "createdAt", "updatedAt"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "artist": { "type": "string" },
+        "lyrics": { "type": "string" },
+        "lyricsFormat": { "type": "string" },
+        "category": { "type": "string" },
+        "createdBy": { "$ref": "#/$defs/nullableString" },
+        "createdAt": { "$ref": "#/$defs/nullableString" },
+        "updatedAt": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "date", "description", "status", "serviceTime", "createdAt", "updatedAt"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "date": { "$ref": "#/$defs/nullableString" },
+        "description": { "$ref": "#/$defs/nullableString" },
+        "status": { "type": "string" },
+        "serviceTime": { "$ref": "#/$defs/nullableString" },
+        "createdAt": { "$ref": "#/$defs/nullableString" },
+        "updatedAt": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "scheduleItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scheduleId", "songId", "position", "notes", "title", "artist"],
+      "properties": {
+        "scheduleId": { "type": "string", "minLength": 1 },
+        "songId": { "type": "string", "minLength": 1 },
+        "position": { "type": "integer", "minimum": 0 },
+        "notes": { "type": "string" },
+        "title": { "type": "string", "minLength": 1 },
+        "artist": { "type": "string" }
+      }
+    }
+  }
+}

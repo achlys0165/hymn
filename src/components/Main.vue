@@ -87,13 +87,13 @@
         </div>
         <div class="divider"></div>
         <div class="nav-section-label">Quick add</div>
-        <div class="nav-item" @click="openSongModal(); sidebarOpen = false">
+        <div v-if="canEdit" class="nav-item" @click="openSongModal(); sidebarOpen = false">
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
             <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
           </svg>
           New Song
         </div>
-        <div class="nav-item" @click="openScheduleModal(); sidebarOpen = false">
+        <div v-if="canEdit" class="nav-item" @click="openScheduleModal(); sidebarOpen = false">
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
             <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
           </svg>
@@ -122,7 +122,7 @@
           <div class="panel list-panel" :class="{ 'panel-hidden-mobile': mobileDetailOpen && currentView === 'library' }">
             <div class="panel-header">
               <span class="panel-title">Song Library</span>
-              <button class="btn btn-accent btn-sm" @click="openSongModal()">
+              <button v-if="canEdit" class="btn btn-accent btn-sm" @click="openSongModal()">
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                   <path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                 </svg>
@@ -151,7 +151,7 @@
                       {{ song.artist || 'Unknown artist' }}
                     </div>
                   </div>
-                  <div class="song-row-actions">
+                  <div v-if="canEdit" class="song-row-actions">
                     <button class="icon-btn" @click.stop="editSong(song.id)" title="Edit">
                       <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
                         <path d="M9 2l2 2-7 7H2v-2L9 2z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>
@@ -172,7 +172,7 @@
                     </svg>
                   </div>
                   <p>No songs yet</p>
-                  <button class="btn btn-accent btn-sm" @click="openSongModal()">Add your first song</button>
+                  <button v-if="canEdit" class="btn btn-accent btn-sm" @click="openSongModal()">Add your first song</button>
                 </div>
                 <div v-else-if="filteredSongs.length === 0" class="empty-list-msg">
                   <p>No results for "{{ songSearch }}"</p>
@@ -215,7 +215,7 @@
                     <span class="badge badge-pink">{{ categoryLabel(selectedSong.category) }}</span>
                   </div>
                 </div>
-                <div class="detail-actions">
+                <div v-if="canEdit" class="detail-actions">
                   <button class="btn btn-subtle btn-sm" @click="editSong(selectedSongId)">Edit</button>
                   <button class="btn btn-outline btn-sm delete-btn" @click="deleteSong(selectedSongId)">Delete</button>
                 </div>
@@ -224,11 +224,11 @@
                 <div class="lyrics-label">Lyrics</div>
                 <div v-if="selectedSong.lyrics" class="lyrics-text">{{ selectedSong.lyrics }}</div>
                 <div v-else class="no-lyrics">No lyrics added yet.
-                  <button class="inline-link" @click="editSong(selectedSongId)">Add lyrics →</button>
+                  <button v-if="canEdit" class="inline-link" @click="editSong(selectedSongId)">Add lyrics →</button>
                 </div>
               </div>
               <div class="song-detail-footer">
-                <button class="btn btn-accent btn-sm" @click="addSelectedSongToSchedule()">
+                <button v-if="canEdit" class="btn btn-accent btn-sm" @click="addSelectedSongToSchedule()">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                     <rect x="1" y="1" width="10" height="10" rx="1" stroke="currentColor" stroke-width="1.1"/>
                     <path d="M6 4v4M4 6h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
@@ -247,7 +247,7 @@
           <div class="panel list-panel" :class="{ 'panel-hidden-mobile': mobileDetailOpen && currentView === 'schedules' }">
             <div class="panel-header">
               <span class="panel-title">Schedules</span>
-              <button class="btn btn-accent btn-sm" @click="openScheduleModal()">
+              <button v-if="canEdit" class="btn btn-accent btn-sm" @click="openScheduleModal()">
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                   <path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                 </svg>
@@ -282,7 +282,7 @@
                     </svg>
                   </div>
                   <p>No schedules yet</p>
-                  <button class="btn btn-accent btn-sm" @click="openScheduleModal()">Create a schedule</button>
+                  <button v-if="canEdit" class="btn btn-accent btn-sm" @click="openScheduleModal()">Create a schedule</button>
                 </div>
               </div>
             </div>
@@ -329,7 +329,7 @@
                   <span class="badge badge-pink">
                     {{ selectedScheduleSongs.length }} song{{ selectedScheduleSongs.length !== 1 ? 's' : '' }}
                   </span>
-                  <button class="btn btn-outline btn-sm delete-btn" @click="deleteSelectedSchedule()">Delete</button>
+                  <button v-if="canEdit" class="btn btn-outline btn-sm delete-btn" @click="deleteSelectedSchedule()">Delete</button>
                 </div>
               </div>
               <div class="panel-body sched-songs-body">
@@ -375,7 +375,7 @@
                           <circle cx="8" cy="9" r="1" fill="currentColor"/>
                         </svg>
                       </div>
-                      <button class="icon-btn danger" @click="removeSongFromSchedule(item.song_id)" title="Remove">
+                      <button v-if="canEdit" class="icon-btn danger" @click="removeSongFromSchedule(item.song_id)" title="Remove">
                         <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
                           <path d="M2 3.5h9M5 3.5V2h3v1.5M10 3.5l-.7 7.5H3.7L3 3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
                         </svg>
@@ -398,7 +398,7 @@
                   No songs added yet
                 </div>
               </div>
-              <div class="add-song-bar">
+              <div v-if="canEdit" class="add-song-bar">
                 <!-- Dropdown + Add button always on one row -->
                 <div class="add-song-bar-row">
                   <select class="add-song-select" v-model="addSongSelectValue">
@@ -731,6 +731,9 @@ export default {
   },
 
   computed: {
+    canEdit() {
+      return ['editor', 'admin'].includes(this.currentUser?.role);
+    },
     filteredSongs() {
       const q = this.songSearch.trim().toLowerCase();
       if (!q) return this.songs;

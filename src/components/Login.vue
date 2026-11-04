@@ -30,13 +30,14 @@ export default {
 
       // UI state
       isSubmitting: false,
+      registrationEnabled: false,
       toastMessage: '',
       toastVisible: false,
       toastTimer: null,
     };
   },
 
-  mounted() {
+  async mounted() {
     this.generateParticles();
     // Only a non-sensitive convenience value (the username to pre-fill) is
     // ever stored client-side. Actual login state lives in an httpOnly
@@ -45,6 +46,17 @@ export default {
     if (saved) {
       this.username = saved;
       this.remember = true;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/config`);
+      if (res.ok) {
+        const data = await res.json();
+        this.registrationEnabled = data.registrationEnabled === true;
+      }
+    } catch {
+      // Registration stays closed when configuration cannot be verified.
+      this.registrationEnabled = false;
     }
   },
 
@@ -90,6 +102,7 @@ export default {
     },
 
     toggleMode() {
+      if (!this.registrationEnabled && !this.isRegistering) return;
       this.isRegistering = !this.isRegistering;
       this.clearErrors();
       this.$nextTick(() => {
@@ -156,7 +169,7 @@ export default {
         this.regUsernameError = true;
         ok = false;
       }
-      if (!this.regPassword.trim() || this.regPassword.length < 6) {
+      if (!this.regPassword.trim() || this.regPassword.length < 10) {
         this.regPasswordError = true;
         ok = false;
       }
@@ -264,7 +277,7 @@ export default {
             {{ isSubmitting ? 'Signing in…' : 'Sign In' }}
           </button>
 
-          <div class="switch-mode">
+          <div v-if="registrationEnabled" class="switch-mode">
             <span>Don't have an account?</span>
             <button type="button" class="link-btn" @click="toggleMode">Create one</button>
           </div>
@@ -304,11 +317,11 @@ export default {
               :class="{ 'field-input-error': regPasswordError }"
               type="password"
               v-model="regPassword"
-              placeholder="Min 6 characters"
+              placeholder="Min 10 characters"
               autocomplete="new-password"
               @input="clearErrors"
             />
-            <div v-if="regPasswordError" class="field-error">Password must be at least 6 characters</div>
+            <div v-if="regPasswordError" class="field-error">Password must be at least 10 characters</div>
           </div>
 
           <div class="field-group">

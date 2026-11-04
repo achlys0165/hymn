@@ -1,7 +1,7 @@
 // api/_lib/routes/schedules.js
 import { Router } from 'express';
 import db from '../db.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -56,7 +56,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requireRole('editor', 'admin'), async (req, res) => {
   try {
     const { name, date, description, service_time, status } = req.body;
     if (!name || !name.trim()) {
@@ -88,7 +88,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireRole('editor', 'admin'), async (req, res) => {
   try {
     const { name, date, description, service_time, status } = req.body;
     if (!name || !name.trim()) {
@@ -121,7 +121,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireRole('editor', 'admin'), async (req, res) => {
   try {
     // Same reasoning as the songs route: explicit + atomic, not relying
     // on ON DELETE CASCADE across separate logical connections.
@@ -140,7 +140,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Add a song to a schedule's lineup, appended at the next position.
-router.post('/:id/songs', async (req, res) => {
+router.post('/:id/songs', requireRole('editor', 'admin'), async (req, res) => {
   try {
     const { song_id, notes } = req.body;
     if (!song_id) return res.status(400).json({ error: 'song_id is required' });
@@ -168,7 +168,7 @@ router.post('/:id/songs', async (req, res) => {
   }
 });
 
-router.delete('/:id/songs/:songId', async (req, res) => {
+router.delete('/:id/songs/:songId', requireRole('editor', 'admin'), async (req, res) => {
   try {
     await db.execute({
       sql: 'DELETE FROM schedule_songs WHERE schedule_id = ? AND song_id = ?',
