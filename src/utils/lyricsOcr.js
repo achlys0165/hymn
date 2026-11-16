@@ -178,14 +178,32 @@ function chordToken(value) {
   return value.replace(/^[|:([\s]+|[|:,)\]\s]+$/g, '');
 }
 
+function chordUnits(value) {
+  const token = chordToken(value);
+  if (!token || /^[-–—]+$/.test(token)) return [];
+  if (CHORD_TOKEN.test(token)) return [token];
+
+  const separated = token.split(/[-–—]+/).filter(Boolean);
+  if (separated.length > 1 && separated.every((part) => CHORD_TOKEN.test(part))) return separated;
+
+  // OCR commonly merges spaced basic chords ("D A" -> "DA").
+  if (/^[A-G]{2,6}$/.test(token)) return [...token];
+  // It can also read a wide gap or cursor between chords as an o/0 ("C G" -> "Doc G").
+  if (/^[A-G][o0][A-G]$/i.test(token)) return [token[0], token.at(-1)];
+  return null;
+}
+
 export function isChordLine(line) {
-  const tokens = line.trim().split(/\s+/).map(chordToken).filter(Boolean);
+  const tokens = line.trim().split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return false;
-  const chordCount = tokens.filter((token) => CHORD_TOKEN.test(token)).length;
-  if (!tokens.every((token) => CHORD_TOKEN.test(token) || ALLOWED_EXTRAS.test(token))) return false;
-  if (chordCount >= 2) return true;
-  // Keep a one-letter lyric such as "A"; a single decorated chord is unambiguous.
-  return chordCount === 1 && /[#b/0-9]|maj|min|sus|dim|aug|add|m$/i.test(tokens[0]);
+  let chordCount = 0;
+  for (const token of tokens) {
+    if (ALLOWED_EXTRAS.test(token)) continue;
+    const units = chordUnits(token);
+    if (units == null) return false;
+    chordCount += units.length;
+  }
+  return chordCount > 0;
 }
 
 function stripInlineChords(line) {
