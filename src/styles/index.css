@@ -1431,6 +1431,7 @@ select.field-input option {
 .modal-body {
   padding: 20px;
   overflow-y: auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1485,7 +1486,9 @@ select.field-input option {
 
 /* Scrollable song list */
 .modal-song-list {
+  min-height: 120px;
   max-height: 180px;
+  flex-shrink: 0;
   overflow-y: auto;
   border: 1px solid rgba(255,255,255,0.05);
   border-radius: 8px;
@@ -1564,6 +1567,9 @@ select.field-input option {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .modal-selected-tag {
