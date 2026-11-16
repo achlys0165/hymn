@@ -1645,6 +1645,14 @@ textarea.field-input {
   flex-wrap: wrap;
 }
 
+.lyrics-editor-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .tag-btn {
   padding: 3px 8px;
   border-radius: 4px;
@@ -1657,6 +1665,33 @@ textarea.field-input {
   transition: opacity 0.1s ease;
 }
 .tag-btn:hover { opacity: 0.8; }
+.tag-btn:disabled { cursor: wait; opacity: 0.55; }
+
+.ocr-scan-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-color: rgba(194, 139, 170, 0.35);
+  background: rgba(194, 139, 170, 0.12);
+  color: #dfb4cd;
+}
+
+.ocr-message {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(194, 139, 170, 0.2);
+  border-radius: 6px;
+  background: rgba(194, 139, 170, 0.08);
+  color: #b7aab5;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.ocr-message.error {
+  border-color: rgba(224, 108, 117, 0.28);
+  background: rgba(224, 108, 117, 0.08);
+  color: #e5a1a7;
+}
 
 .tag-verse   { background: #4A90E2; }
 .tag-chorus  { background: #50E3C2; }

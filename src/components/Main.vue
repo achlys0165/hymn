@@ -463,15 +463,25 @@
             <div>
               <div class="lyrics-editor-header">
                 <span class="field-label" style="margin-bottom:0;">Lyrics</span>
-                <div class="lyrics-tag-btns">
+                <div class="lyrics-editor-tools">
+                  <input ref="ocrPhotoInput" type="file" accept="image/*" hidden @change="handleOcrPhotoSelected" />
+                  <button type="button" class="tag-btn ocr-scan-btn" :disabled="ocrScanning" @click="$refs.ocrPhotoInput?.click()">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 5.5h2l1-1.5h5l1 1.5h2v7h-11v-7Z" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="9" r="2.2" stroke="currentColor" stroke-width="1.2"/></svg>
+                    {{ ocrScanning ? 'Scanning…' : 'Scan photo' }}
+                  </button>
+                  <div class="lyrics-tag-btns">
                   <button type="button" class="tag-btn tag-verse"    @click="insertTag('Verse')">Verse</button>
                   <button type="button" class="tag-btn tag-chorus"   @click="insertTag('Chorus')">Chorus</button>
                   <button type="button" class="tag-btn tag-bridge"   @click="insertTag('Bridge')">Bridge</button>
                   <button type="button" class="tag-btn tag-pre"      @click="insertTag('Pre-Chorus')">Pre-C</button>
                   <button type="button" class="tag-btn tag-intro"    @click="insertTag('Intro')">Intro</button>
                   <button type="button" class="tag-btn tag-outro"    @click="insertTag('Outro')">Outro</button>
+                  </div>
                 </div>
               </div>
+
+              <div v-if="ocrError" class="ocr-message error">{{ ocrError }}</div>
+              <div v-else-if="ocrStatus" class="ocr-message">{{ ocrStatus }}</div>
 
               <textarea
                 ref="lyricsTextarea"
@@ -670,6 +680,8 @@
 </template>
 
 <script>
+import { cleanOcrText, extractTextFromImage } from '../utils/lyricsOcr';
+
 // API_BASE: same-origin "/api" by default. Set VITE_API_URL in the
 // frontend's .env only if backend and frontend are deployed on different
 // origins (see backend README for the same-origin-vs-not tradeoffs).
@@ -722,6 +734,9 @@ export default {
       schedForm: { name: '', date: '', description: '', service_time: '', status: 'draft' },
       songFormError: false,
       schedFormError: false,
+      ocrScanning: false,
+      ocrStatus: '',
+      ocrError: '',
 
       // Toast
       toastMessage: '',
@@ -989,6 +1004,7 @@ export default {
       this.editingSongId = null;
       this.songForm = { title: '', artist: '', lyrics: '', category: 'praise_worship' };
       this.songFormError = false;
+      this.resetOcrState();
       this.showSongModal = true;
     },
 
@@ -996,6 +1012,7 @@ export default {
       this.showSongModal = false;
       this.editingSongId = null;
       this.songFormError = false;
+      this.resetOcrState();
     },
 
     async saveSong() {
@@ -1053,6 +1070,7 @@ export default {
         category: song.category || 'praise_worship',
       };
       this.songFormError = false;
+      this.resetOcrState();
       this.showSongModal = true;
     },
 
@@ -1237,6 +1255,57 @@ export default {
       // Clicking the same song again collapses it; clicking a different
       // one collapses the previous and expands the new one.
       this.expandedSongId = this.expandedSongId === songId ? null : songId;
+    },
+
+    resetOcrState() {
+      this.ocrScanning = false;
+      this.ocrStatus = '';
+      this.ocrError = '';
+    },
+
+    async handleOcrPhotoSelected(event) {
+      const file = event.target.files?.[0];
+      event.target.value = '';
+      if (!file) return;
+
+      this.ocrStatus = '';
+      this.ocrError = '';
+      if (!file.type.startsWith('image/')) {
+        this.ocrError = 'Choose an image file to scan.';
+        return;
+      }
+      if (file.size > 15 * 1024 * 1024) {
+        this.ocrError = 'That image is larger than 15 MB. Choose a smaller photo.';
+        return;
+      }
+
+      this.ocrScanning = true;
+      try {
+        const rawText = await extractTextFromImage(file, {
+          onProgress: ({ status, progress }) => {
+            if (status === 'recognizing text') this.ocrStatus = `Scanning… ${Math.round((progress || 0) * 100)}%`;
+          },
+        });
+        const result = cleanOcrText(rawText);
+        if (!result.text) {
+          this.ocrStatus = '';
+          this.ocrError = "Couldn't read any text from that photo. Try a clearer, well-lit image.";
+          return;
+        }
+
+        this.songForm.lyrics = this.songForm.lyrics.trim()
+          ? `${this.songForm.lyrics.trim()}\n\n${result.text}`
+          : result.text;
+        const removed = result.removedChordLines + result.removedInlineChords;
+        this.ocrStatus = `Imported ${result.text.split('\n').filter(Boolean).length} lyric lines${removed ? ` · removed ${removed} chord ${removed === 1 ? 'entry' : 'entries'}` : ''}. Review before saving.`;
+        this.$nextTick(() => this.$refs.lyricsTextarea?.focus());
+      } catch (err) {
+        console.error('OCR scan error:', err);
+        this.ocrStatus = '';
+        this.ocrError = 'Scan failed. Try another image.';
+      } finally {
+        this.ocrScanning = false;
+      }
     },
 
     // Inserts a section tag at the cursor position in the lyrics textarea.

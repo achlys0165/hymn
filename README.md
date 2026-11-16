@@ -49,6 +49,13 @@ desktop synchronization; the password is never stored by the desktop.
 The optional legacy desktop token only reaches the snapshot endpoint. It is not
 a Turso token, cannot submit SQL, and cannot change cloud records.
 
+## Photo-to-lyrics import
+
+Editors and administrators can scan an image from the song editor. OCR runs in
+the browser using bundled language data, removes chord-only rows and bracketed
+inline chords, then places the result in the normal lyrics field for review.
+Nothing is written to Turso until the user presses **Save Song**.
+
 ## Sync contract
 
 The canonical desktop contract is `sync-contract-v1.schema.json` and the
@@ -69,5 +76,6 @@ versioned endpoint is `GET /api/sync/v1/snapshot`.
 ```sh
 npm install
 npm run dev
+npm test
 npm run build
 ```
