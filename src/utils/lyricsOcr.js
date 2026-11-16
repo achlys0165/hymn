@@ -175,7 +175,7 @@ const CHORD_TOKEN =
 const ALLOWED_EXTRAS = /^(x\d+|\d+x|n\.?c\.?|\(.*\))$/i;
 
 function chordToken(value) {
-  return value.replace(/^[|:([\s]+|[|:,)\]\s]+$/g, '');
+  return value.replace(/^[|:([_\-–—\s]+|[|:,)\]_.;\s]+$/g, '');
 }
 
 function chordUnits(value) {
@@ -184,7 +184,11 @@ function chordUnits(value) {
   if (CHORD_TOKEN.test(token)) return [token];
 
   const separated = token.split(/[-–—]+/).filter(Boolean);
-  if (separated.length > 1 && separated.every((part) => CHORD_TOKEN.test(part))) return separated;
+  if (/[-–—]/.test(token) && separated.length && separated.every((part) => CHORD_TOKEN.test(part))) return separated;
+
+  // Slashes are often recognized as I, l, |, or H in bold chord sheets.
+  const slashMisread = token.match(/^([A-G](?:#|b)?)[HIl|]+([A-G](?:#|b)?)$/i);
+  if (slashMisread) return [slashMisread[1], slashMisread[2]];
 
   // OCR commonly merges spaced basic chords ("D A" -> "DA").
   if (/^[A-G]{2,6}$/.test(token)) return [...token];
@@ -216,6 +220,12 @@ function stripInlineChords(line) {
   return { text: text.replace(/[ \t]{2,}/g, ' ').trimEnd(), removed };
 }
 
+function stripInstructionChordSuffix(line) {
+  const match = line.match(/^(Intro(?:\s+Base)?|Bridge(?:\s+Interlude)?)\s*:?[ \t]+(.+)$/i);
+  if (!match || !/[A-G](?:#|b)?/i.test(match[2])) return null;
+  return { text: match[1].trim(), removed: Math.max(1, match[2].split(/\s+|[-–—]+/).filter(Boolean).length) };
+}
+
 export function cleanOcrText(rawText) {
   const lines = String(rawText || '').normalize('NFKC').replace(/\r\n?/g, '\n').split('\n');
   const kept = [];
@@ -226,6 +236,12 @@ export function cleanOcrText(rawText) {
     const line = rawLine.replace(/\u00ad/g, '').trim();
     if (isChordLine(line)) {
       removedChordLines += 1;
+      continue;
+    }
+    const instruction = stripInstructionChordSuffix(line);
+    if (instruction) {
+      removedInlineChords += instruction.removed;
+      kept.push(instruction.text);
       continue;
     }
     const inline = stripInlineChords(line);

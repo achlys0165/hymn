@@ -9,8 +9,39 @@ test('detects chord-only rows including OCR merges and separators', () => {
   assert.equal(isChordLine('DA'), true);
   assert.equal(isChordLine('Doc G'), true);
   assert.equal(isChordLine('D'), true);
+  assert.equal(isChordLine('G#IC'), true);
+  assert.equal(isChordLine('G#HIC'), true);
+  assert.equal(isChordLine('C#HIF'), true);
+  assert.equal(isChordLine('D#m_'), true);
+  assert.equal(isChordLine('—-F#'), true);
   assert.equal(isChordLine('[Chorus]'), false);
   assert.equal(isChordLine('Something good is in store'), false);
+});
+
+test('cleans OCR artifacts and chord progressions from a two-column chord sheet', () => {
+  const result = cleanOcrText(`Intro Base C# - G#/C — Fi# (2x)
+Verse 1:
+C#
+G#IC
+I could sing Your Name for all my life
+G#HIC
+—-F#
+And still find more to love each time
+Bridge Interlude : Di##tm — F# - Bbm — G#
+Bridge:
+D#m_
+Jesus Your Name is like the morning light
+C#HIF
+The Lord who will forever reign`);
+
+  assert.equal(result.text, `Intro Base
+Verse 1:
+I could sing Your Name for all my life
+And still find more to love each time
+Bridge Interlude
+Bridge:
+Jesus Your Name is like the morning light
+The Lord who will forever reign`);
 });
 
 test('cleans chord rows and inline chords while preserving lyric structure', () => {
