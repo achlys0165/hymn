@@ -82,7 +82,7 @@ router.post('/', requireRole('editor', 'admin'), async (req, res) => {
             RETURNING *`,
       args: [
         name.trim(),
-        date || null,
+        date || '',
         description?.trim() || null,
         safeStatus,
         service_time?.trim() || null,
@@ -122,7 +122,7 @@ router.put('/:id', requireRole('editor', 'admin'), async (req, res) => {
             WHERE id = ?`,
       args: [
         name.trim(),
-        date || null,
+        date || '',
         description?.trim() || null,
         safeStatus,
         service_time?.trim() || null,
