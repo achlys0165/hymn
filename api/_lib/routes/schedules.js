@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { hasSameSongIds, normalizeSongIds } from '../../../shared/scheduleOrder.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -57,14 +58,17 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', requireRole('editor', 'admin'), async (req, res) => {
+  let transaction;
   try {
-    const { name, date, description, service_time, status } = req.body;
+    const { name, date, description, service_time, status, song_ids } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Schedule name is required' });
     }
+    const songIds = normalizeSongIds(song_ids);
     const safeStatus = ALLOWED_STATUS.includes(status) ? status : 'draft';
 
-    const result = await db.execute({
+    transaction = await db.transaction('write');
+    const result = await transaction.execute({
       sql: `INSERT INTO schedules (name, date, description, status, service_time, created_by)
             VALUES (?, ?, ?, ?, ?, ?)`,
       args: [
@@ -76,15 +80,37 @@ router.post('/', requireRole('editor', 'admin'), async (req, res) => {
         req.user.sub,
       ],
     });
+    const scheduleId = Number(result.lastInsertRowid);
 
-    const created = await db.execute({
+    if (songIds.length) {
+      const existing = await transaction.execute({
+        sql: `SELECT id FROM songs WHERE id IN (${songIds.map(() => '?').join(', ')})`,
+        args: songIds,
+      });
+      if (existing.rows.length !== songIds.length) {
+        const error = new Error('One or more selected songs no longer exist');
+        error.status = 400;
+        throw error;
+      }
+      await transaction.batch(songIds.map((songId, index) => ({
+        sql: `INSERT INTO schedule_songs (schedule_id, song_id, position, notes)
+              VALUES (?, ?, ?, NULL)`,
+        args: [scheduleId, songId, index + 1],
+      })));
+    }
+
+    const created = await transaction.execute({
       sql: 'SELECT * FROM schedules WHERE id = ?',
-      args: [Number(result.lastInsertRowid)],
+      args: [scheduleId],
     });
+    await transaction.commit();
     res.status(201).json({ schedule: created.rows[0] });
   } catch (err) {
     console.error('Create schedule error:', err);
-    res.status(500).json({ error: 'Could not create schedule' });
+    const status = err instanceof TypeError ? 400 : (err.status || 500);
+    res.status(status).json({ error: status === 500 ? 'Could not create schedule' : err.message });
+  } finally {
+    transaction?.close();
   }
 });
 
@@ -165,6 +191,59 @@ router.post('/:id/songs', requireRole('editor', 'admin'), async (req, res) => {
     }
     console.error('Add song to schedule error:', err);
     res.status(500).json({ error: 'Could not add song to schedule' });
+  }
+});
+
+router.put('/:id/songs/order', requireRole('editor', 'admin'), async (req, res) => {
+  if (!Array.isArray(req.body.song_ids)) {
+    return res.status(400).json({ error: 'song_ids must be an array' });
+  }
+
+  let transaction;
+  try {
+    const songIds = normalizeSongIds(req.body.song_ids);
+    transaction = await db.transaction('write');
+
+    const schedule = await transaction.execute({
+      sql: 'SELECT id FROM schedules WHERE id = ?',
+      args: [req.params.id],
+    });
+    if (!schedule.rows[0]) {
+      const error = new Error('Schedule not found');
+      error.status = 404;
+      throw error;
+    }
+
+    const current = await transaction.execute({
+      sql: 'SELECT song_id FROM schedule_songs WHERE schedule_id = ? ORDER BY position ASC',
+      args: [req.params.id],
+    });
+    const currentIds = current.rows.map((row) => Number(row.song_id));
+    if (!hasSameSongIds(currentIds, songIds)) {
+      const error = new Error('Schedule changed. Refresh and try again.');
+      error.status = 409;
+      throw error;
+    }
+
+    if (songIds.length) {
+      await transaction.execute({
+        sql: 'UPDATE schedule_songs SET position = position + 1000000 WHERE schedule_id = ?',
+        args: [req.params.id],
+      });
+      await transaction.batch(songIds.map((songId, index) => ({
+        sql: 'UPDATE schedule_songs SET position = ? WHERE schedule_id = ? AND song_id = ?',
+        args: [index + 1, req.params.id, songId],
+      })));
+    }
+
+    await transaction.commit();
+    res.json({ message: 'Schedule order saved' });
+  } catch (err) {
+    console.error('Reorder schedule error:', err);
+    const status = err instanceof TypeError ? 400 : (err.status || 500);
+    res.status(status).json({ error: status === 500 ? 'Could not reorder schedule' : err.message });
+  } finally {
+    transaction?.close();
   }
 });
 

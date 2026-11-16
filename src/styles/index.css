@@ -1309,14 +1309,22 @@ select.field-input option {
   opacity: 0;
 }
 
-.drag-handle {
-  color: #4a3e4a;
-  cursor: grab;
+.schedule-order-controls {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
 }
 
-.drag-handle:active {
-  cursor: grabbing;
+.schedule-order-controls .icon-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+}
+
+.schedule-order-controls .icon-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+  background: transparent;
 }
 
 .add-song-bar {
@@ -1554,26 +1562,41 @@ select.field-input option {
 
 .modal-selected-tags {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 6px;
 }
 
 .modal-selected-tag {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 8px 4px 10px;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 6px 5px 10px;
   background: rgba(194,139,170,0.12);
   border: 1px solid rgba(194,139,170,0.2);
-  border-radius: 20px;
+  border-radius: 8px;
   font-size: 12px;
   color: #c28baa;
-  cursor: pointer;
   transition: background 0.1s ease;
 }
 
 .modal-selected-tag:hover {
   background: rgba(194,139,170,0.2);
+}
+
+.modal-selected-position {
+  width: 18px;
+  color: #8a7e8a;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.modal-selected-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* ── Form fields ── */

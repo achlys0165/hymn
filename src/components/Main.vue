@@ -365,15 +365,21 @@
                             stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                       </button>
-                      <div class="drag-handle" aria-hidden="true">
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <circle cx="4" cy="3" r="1" fill="currentColor"/>
-                          <circle cx="8" cy="3" r="1" fill="currentColor"/>
-                          <circle cx="4" cy="6" r="1" fill="currentColor"/>
-                          <circle cx="8" cy="6" r="1" fill="currentColor"/>
-                          <circle cx="4" cy="9" r="1" fill="currentColor"/>
-                          <circle cx="8" cy="9" r="1" fill="currentColor"/>
-                        </svg>
+                      <div v-if="canEdit" class="schedule-order-controls">
+                        <button
+                          class="icon-btn"
+                          :disabled="index === 0 || isReorderingSchedule"
+                          :aria-label="`Move ${item.title} up`"
+                          title="Move up"
+                          @click="moveScheduledSong(index, -1)"
+                        >↑</button>
+                        <button
+                          class="icon-btn"
+                          :disabled="index === selectedScheduleSongs.length - 1 || isReorderingSchedule"
+                          :aria-label="`Move ${item.title} down`"
+                          title="Move down"
+                          @click="moveScheduledSong(index, 1)"
+                        >↓</button>
                       </div>
                       <button v-if="canEdit" class="icon-btn danger" @click="removeSongFromSchedule(item.song_id)" title="Remove">
                         <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -621,18 +627,23 @@
                 {{ schedFormSongs.length }} song{{ schedFormSongs.length !== 1 ? 's' : '' }} selected
               </div>
               <div class="modal-selected-tags">
-                <span
-                  v-for="song in schedFormSongs"
+                <div
+                  v-for="(song, index) in schedFormSongs"
                   :key="song.id"
                   class="modal-selected-tag"
-                  @click="toggleScheduleSong(song)"
-                  title="Click to remove"
                 >
-                  {{ song.title }}
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                    <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                  </svg>
-                </span>
+                  <span class="modal-selected-position">{{ index + 1 }}</span>
+                  <span class="modal-selected-title">{{ song.title }}</span>
+                  <div class="schedule-order-controls">
+                    <button class="icon-btn" :disabled="index === 0" :aria-label="`Move ${song.title} up`" @click="moveDraftScheduleSong(index, -1)">↑</button>
+                    <button class="icon-btn" :disabled="index === schedFormSongs.length - 1" :aria-label="`Move ${song.title} down`" @click="moveDraftScheduleSong(index, 1)">↓</button>
+                    <button class="icon-btn danger" :aria-label="`Remove ${song.title}`" @click="toggleScheduleSong(song)">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -681,6 +692,7 @@
 
 <script>
 import { cleanOcrText, extractTextFromImage } from '../utils/lyricsOcr';
+import { moveScheduleSong } from '../../shared/scheduleOrder.js';
 
 // API_BASE: same-origin "/api" by default. Set VITE_API_URL in the
 // frontend's .env only if backend and frontend are deployed on different
@@ -708,6 +720,7 @@ export default {
       loadError: '',
       isSavingSong: false,
       isSavingSchedule: false,
+      isReorderingSchedule: false,
 
       // UI
       sidebarOpen: false,
@@ -717,7 +730,7 @@ export default {
       expandedSongId: null,
       // New schedule modal song picker state
       schedSongSearch: '',
-      schedFormSongs: [], // [{id, title, artist}] staged to link after schedule is created
+      schedFormSongs: [], // [{id, title, artist}] sent in order with the new schedule
 
       // Modals
       showSongModal: false,
@@ -1125,6 +1138,10 @@ export default {
       }
     },
 
+    moveDraftScheduleSong(index, direction) {
+      this.schedFormSongs = moveScheduleSong(this.schedFormSongs, index, direction);
+    },
+
     async saveSchedule() {
       if (!this.schedForm.name.trim()) {
         this.schedFormError = true;
@@ -1134,7 +1151,6 @@ export default {
       this.isSavingSchedule = true;
 
       try {
-        // 1. Create the schedule
         const res = await fetch(`${API_BASE}/schedules`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1144,19 +1160,13 @@ export default {
             date: this.schedForm.date,
             service_time: this.schedForm.service_time.trim(),
             status: this.schedForm.status,
+            song_ids: this.schedFormSongs.map((song) => song.id),
           }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Could not create schedule');
 
         const newSchedId = data.schedule.id;
-
-        // 2. Link any songs that were selected in the modal, in order
-        for (const song of this.schedFormSongs) {
-          await this.addSongToScheduleApi(newSchedId, song.id);
-        }
-
-        // 3. Reload the schedule detail so the linked songs show immediately
         await this.loadScheduleDetail(newSchedId);
         await this.refreshScheduleList();
 
@@ -1247,6 +1257,41 @@ export default {
         await this.refreshScheduleList();
       } catch (err) {
         this.showFetchError(err);
+      }
+    },
+
+    async moveScheduledSong(index, direction) {
+      if (!this.selectedSchedId || this.isReorderingSchedule) return;
+      const current = this.selectedScheduleSongs;
+      const reordered = moveScheduleSong(current, index, direction);
+      if (reordered === current) return;
+
+      const scheduleId = this.selectedSchedId;
+      this.isReorderingSchedule = true;
+      try {
+        const res = await fetch(`${API_BASE}/schedules/${scheduleId}/songs/order`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ song_ids: reordered.map((song) => song.song_id) }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not reorder schedule');
+
+        const detail = this.scheduleDetails[scheduleId];
+        this.scheduleDetails = {
+          ...this.scheduleDetails,
+          [scheduleId]: {
+            ...detail,
+            songs: reordered.map((song, position) => ({ ...song, position: position + 1 })),
+          },
+        };
+        this.showToast('Schedule order saved');
+      } catch (err) {
+        await this.loadScheduleDetail(scheduleId);
+        this.showFetchError(err);
+      } finally {
+        this.isReorderingSchedule = false;
       }
     },
 
