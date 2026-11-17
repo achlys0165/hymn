@@ -1413,6 +1413,8 @@ select.field-input option {
   max-width: 380px;
 }
 
+.schedule-modal { max-width: 720px; }
+
 .modal-header {
   display: flex;
   align-items: center;
@@ -1451,6 +1453,86 @@ select.field-input option {
   height: 1px;
   background: rgba(255,255,255,0.06);
   margin: 4px 0 12px;
+}
+
+.smart-setlist {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(194,139,170,0.18);
+  border-radius: 10px;
+  background: rgba(194,139,170,0.04);
+}
+
+.smart-setlist-heading,
+.smart-setlist-actions,
+.setlist-summary,
+.setlist-result {
+  display: flex;
+  align-items: center;
+}
+
+.smart-setlist-heading { justify-content: space-between; gap: 12px; }
+.smart-setlist-heading div { display: grid; gap: 3px; }
+.smart-setlist-heading b { color: #e8e2e8; font-size: 13px; }
+.smart-setlist-heading span,
+.smart-setlist-actions small { color: #8e818e; font-size: 11px; }
+.ai-badge {
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: #d8a9c3 !important;
+  background: rgba(194,139,170,0.12);
+  font-weight: 600;
+}
+.setlist-input { min-height: 108px; resize: vertical; line-height: 1.5; }
+.smart-setlist-actions { justify-content: space-between; gap: 12px; }
+.setlist-results { display: grid; gap: 6px; }
+.setlist-summary { flex-wrap: wrap; gap: 6px; }
+.setlist-summary span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: #aaa0aa;
+  background: rgba(255,255,255,0.05);
+  font-size: 10px;
+}
+.setlist-result {
+  gap: 9px;
+  min-height: 46px;
+  padding: 8px 9px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.025);
+}
+.setlist-position {
+  width: 22px;
+  color: #786d78;
+  font-size: 11px;
+  text-align: center;
+}
+.setlist-result-copy { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.setlist-result-copy b { overflow: hidden; color: #e8e2e8; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.setlist-result-copy small { color: #8e818e; font-size: 10px; }
+.setlist-status { color: #9ecca9; font-size: 10px; font-weight: 600; }
+.is-missing .setlist-result-copy small { color: #d49a9a; }
+.is-duplicate { opacity: 0.62; }
+.setlist-find,
+.setlist-suggestions button {
+  padding: 5px 8px;
+  border: 1px solid rgba(194,139,170,0.2);
+  border-radius: 6px;
+  color: #d8a9c3;
+  background: rgba(194,139,170,0.08);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.setlist-missing-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+.setlist-suggestions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.setlist-resolve-note { margin: -3px 0 7px; color: #d8a9c3; font-size: 11px; }
+
+@media (max-width: 600px) {
+  .smart-setlist-actions { align-items: stretch; flex-direction: column; }
+  .setlist-result { align-items: flex-start; }
+  .setlist-status { padding-top: 3px; }
 }
 
 /* Search bar inside the modal */

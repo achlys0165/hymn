@@ -530,7 +530,7 @@
     <!-- Add Schedule Modal -->
     <Transition name="modal">
       <div v-if="showScheduleModal" class="modal-overlay" @click.self="closeScheduleModal()">
-        <div class="modal">
+        <div class="modal schedule-modal">
           <div class="modal-header">
             <span class="modal-title">New Schedule</span>
             <button class="icon-btn" @click="closeScheduleModal()">
@@ -573,9 +573,51 @@
               </select>
             </div>
 
+            <section class="smart-setlist">
+              <div class="smart-setlist-heading">
+                <div><b>Smart setlist import</b><span>Paste one song per line. Numbers, artists, keys, and bullets are understood.</span></div>
+                <span class="ai-badge">Assisted</span>
+              </div>
+              <textarea v-model="setlistText" class="field-input setlist-input" rows="5" placeholder="1. Goodness of God - Bethel Music&#10;2. 10,000 Reasons (Key of G)&#10;3. Amazing Grace" />
+              <div class="smart-setlist-actions">
+                <small>Compiling replaces the current lineup.</small>
+                <button class="btn btn-outline btn-sm" type="button" :disabled="!setlistText.trim()" @click="analyzeSetlist()">Compile lineup</button>
+              </div>
+
+              <div v-if="setlistAnalyzed" class="setlist-results">
+                <div class="setlist-summary">
+                  <span>{{ setlistCounts.matched }} matched</span>
+                  <span v-if="setlistCounts.suggested">{{ setlistCounts.suggested }} need review</span>
+                  <span v-if="setlistCounts.missing">{{ setlistCounts.missing }} missing</span>
+                  <span v-if="setlistCounts.duplicate">{{ setlistCounts.duplicate }} duplicate</span>
+                </div>
+                <p v-if="setlistResults.length === 0" class="modal-song-empty">No song titles were found.</p>
+                <div v-for="entry in setlistResults" :key="entry.id" class="setlist-result" :class="`is-${entry.status}`">
+                  <span class="setlist-position">{{ setlistResults.indexOf(entry) + 1 }}</span>
+                  <div class="setlist-result-copy">
+                    <b>{{ entry.title }}</b>
+                    <small v-if="entry.status === 'matched'">Matched to {{ entry.song.title }}</small>
+                    <small v-else-if="entry.status === 'duplicate'">Already included as {{ entry.song.title }}</small>
+                    <small v-else-if="entry.status === 'missing'">This song does not exist in the library.</small>
+                    <small v-else>Choose the intended library song.</small>
+                    <div v-if="entry.status === 'suggested'" class="setlist-suggestions">
+                      <button v-for="match in entry.suggestions" :key="match.song.id" type="button" @click="acceptSetlistMatch(entry, match.song)">Use {{ match.song.title }}</button>
+                    </div>
+                  </div>
+                  <span v-if="entry.status === 'matched'" class="setlist-status">Matched</span>
+                  <span v-else-if="entry.status === 'duplicate'" class="setlist-status">Skipped</span>
+                  <div v-else-if="entry.status === 'missing'" class="setlist-missing-actions">
+                    <button class="setlist-find" type="button" @click="findSetlistMatch(entry)">Find match</button>
+                    <button class="setlist-find" type="button" @click="addMissingSetlistSong(entry)">Add song</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <!-- Song picker -->
             <div class="modal-divider"></div>
             <div class="field-label" style="margin-bottom:8px;">Add Songs</div>
+            <p v-if="setlistResolveEntry" class="setlist-resolve-note">Choose the library song for “{{ setlistResolveEntry.title }}”.</p>
 
             <!-- Search -->
             <div class="modal-song-search-wrap">
@@ -693,6 +735,7 @@
 <script>
 import { cleanOcrText, extractTextFromImage } from '../utils/lyricsOcr';
 import { moveScheduleSong } from '../../shared/scheduleOrder.js';
+import { matchSetlist } from '../../shared/setlistMatcher.js';
 
 // API_BASE: same-origin "/api" by default. Set VITE_API_URL in the
 // frontend's .env only if backend and frontend are deployed on different
@@ -731,6 +774,11 @@ export default {
       // New schedule modal song picker state
       schedSongSearch: '',
       schedFormSongs: [], // [{id, title, artist}] sent in order with the new schedule
+      setlistText: '',
+      setlistResults: [],
+      setlistAnalyzed: false,
+      setlistResolveEntryId: null,
+      pendingSetlistEntryId: null,
 
       // Modals
       showSongModal: false,
@@ -856,6 +904,17 @@ export default {
           s.title.toLowerCase().includes(q) ||
           (s.artist || '').toLowerCase().includes(q)
       );
+    },
+
+    setlistCounts() {
+      return this.setlistResults.reduce((counts, entry) => {
+        counts[entry.status] += 1;
+        return counts;
+      }, { matched: 0, suggested: 0, missing: 0, duplicate: 0 });
+    },
+
+    setlistResolveEntry() {
+      return this.setlistResults.find(entry => entry.id === this.setlistResolveEntryId) || null;
     },
 
     userInitials() {
@@ -1014,6 +1073,7 @@ export default {
 
     // ── Song CRUD ──
     openSongModal() {
+      this.pendingSetlistEntryId = null;
       this.editingSongId = null;
       this.songForm = { title: '', artist: '', lyrics: '', category: 'praise_worship' };
       this.songFormError = false;
@@ -1022,10 +1082,13 @@ export default {
     },
 
     closeSongModal() {
+      const returnToSchedule = this.pendingSetlistEntryId !== null;
       this.showSongModal = false;
       this.editingSongId = null;
       this.songFormError = false;
+      this.pendingSetlistEntryId = null;
       this.resetOcrState();
+      if (returnToSchedule) this.showScheduleModal = true;
     },
 
     async saveSong() {
@@ -1060,9 +1123,14 @@ export default {
         } else {
           this.songs.push(data.song);
           this.songs.sort((a, b) => a.title.localeCompare(b.title));
-          this.selectedSongId = data.song.id;
-          this.currentView = 'library';
-          this.mobileDetailOpen = true;
+          const setlistEntry = this.setlistResults.find(entry => entry.id === this.pendingSetlistEntryId);
+          if (setlistEntry) {
+            this.acceptSetlistMatch(setlistEntry, data.song);
+          } else {
+            this.selectedSongId = data.song.id;
+            this.currentView = 'library';
+            this.mobileDetailOpen = true;
+          }
         }
         this.closeSongModal();
       } catch (err) {
@@ -1075,6 +1143,7 @@ export default {
     editSong(id) {
       const song = this.songs.find((s) => s.id === id);
       if (!song) return;
+      this.pendingSetlistEntryId = null;
       this.editingSongId = id;
       this.songForm = {
         title: song.title,
@@ -1118,6 +1187,11 @@ export default {
       this.schedFormError = false;
       this.schedSongSearch = '';
       this.schedFormSongs = [];
+      this.setlistText = '';
+      this.setlistResults = [];
+      this.setlistAnalyzed = false;
+      this.setlistResolveEntryId = null;
+      this.pendingSetlistEntryId = null;
       this.showScheduleModal = true;
     },
 
@@ -1126,10 +1200,56 @@ export default {
       this.schedFormError = false;
       this.schedSongSearch = '';
       this.schedFormSongs = [];
+      this.setlistText = '';
+      this.setlistResults = [];
+      this.setlistAnalyzed = false;
+      this.setlistResolveEntryId = null;
+      this.pendingSetlistEntryId = null;
+    },
+
+    analyzeSetlist() {
+      this.setlistResults = matchSetlist(this.setlistText, this.songs);
+      this.setlistAnalyzed = true;
+      this.setlistResolveEntryId = null;
+      this.schedSongSearch = '';
+      this.syncCompiledSetlist();
+    },
+
+    syncCompiledSetlist() {
+      this.schedFormSongs = this.setlistResults
+        .filter(entry => entry.status === 'matched')
+        .map(entry => ({ id: entry.song.id, title: entry.song.title, artist: entry.song.artist }));
+    },
+
+    acceptSetlistMatch(entry, song) {
+      const duplicate = this.setlistResults.some(other => other !== entry && other.status === 'matched' && other.song?.id === song.id);
+      Object.assign(entry, { status: duplicate ? 'duplicate' : 'matched', song, suggestions: [] });
+      this.setlistResolveEntryId = null;
+      this.schedSongSearch = '';
+      this.syncCompiledSetlist();
+    },
+
+    findSetlistMatch(entry) {
+      this.setlistResolveEntryId = entry.id;
+      this.schedSongSearch = entry.title;
+    },
+
+    addMissingSetlistSong(entry) {
+      this.pendingSetlistEntryId = entry.id;
+      this.editingSongId = null;
+      this.songForm = { title: entry.title, artist: entry.artist || '', lyrics: '', category: 'praise_worship' };
+      this.songFormError = false;
+      this.resetOcrState();
+      this.showScheduleModal = false;
+      this.showSongModal = true;
     },
 
     // Toggle a song in/out of the new-schedule staging list
     toggleScheduleSong(song) {
+      if (this.setlistResolveEntry) {
+        this.acceptSetlistMatch(this.setlistResolveEntry, song);
+        return;
+      }
       const idx = this.schedFormSongs.findIndex((s) => s.id === song.id);
       if (idx !== -1) {
         this.schedFormSongs.splice(idx, 1);
