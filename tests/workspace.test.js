@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { joinLyrics, lineupChanges, lyricsForEditor, nextSunday, parseDate, searchLibrary, serviceTimeFromInput, serviceTimeInput, setlistBuckets, splitLyrics } from '../src/utils/workspace.js';
+import { joinLyrics, lineupChanges, lyricsForEditor, nextSunday, normalizeLyricLabels, parseDate, searchLibrary, sectionName, serviceTimeFromInput, serviceTimeInput, setlistBuckets, splitLyrics, tidyPastedLyrics } from '../src/utils/workspace.js';
 
 test('section editing round-trips headerless, empty, duplicate, and CRLF lyrics', () => {
   for (const text of [
@@ -16,6 +16,24 @@ test('dates respect the local service day and keep undated setlists visible sepa
   assert.deepEqual(setlistBuckets([{date:'2026-11-18'}, {date:'2026-11-17'}, {date:''}], '2026-11-18'), {
     upcoming:[{date:'2026-11-18'}], past:[{date:'2026-11-17'}], undated:[{date:''}],
   });
+});
+
+test('normalizes supported section headers without changing the lyric lines', () => {
+  const raw = 'Pamagát\r\n[Verse 1]\r\nUna, kabutíhan!\r\n(CHORUS A):\r\nChorus starts with a word\r\nChorus A:\r\n\r\nPRECHORUS 2\r\nC  G/B  Am  F\r\nInstrumental\r\nHook b:';
+  const blocks = splitLyrics(raw);
+  assert.equal(joinLyrics(blocks),raw);
+  assert.deepEqual(blocks.map(sectionName),['','Verse 1','Chorus A','Chorus A','Pre-chorus 2','Instrumental','Hook B']);
+  assert.equal(blocks[2].text,'Chorus starts with a word');
+  assert.equal(blocks[3].text,'');
+  const saved=normalizeLyricLabels(raw);
+  assert.equal(normalizeLyricLabels(saved),saved);
+  assert.match(saved,/Una, kabutíhan!/);
+  assert.match(saved,/C  G\/B  Am  F/);
+  assert.equal(tidyPastedLyrics('Verse 1:  \r\nStay!  \r\n\r\n\r\n\r\nChorus\r\nGo.\r\nBridge'), 'Verse 1:\nStay!\n\nChorus\nGo.\n\nBridge');
+  const long=Array.from({length:150},(_,index)=>`Verse ${index+1}:\nLyric one\nLyric two\nLyric three`).join('\n');
+  const start=performance.now();
+  assert.equal(splitLyrics(long).length,150);
+  assert.ok(performance.now()-start<50,'600 lines should parse in under 50 ms');
 });
 
 test('native service time controls preserve saved time formatting when unchanged', () => {

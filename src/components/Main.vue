@@ -8,11 +8,14 @@ import {
 import LibraryRows from './LibraryRows.vue';
 import WorkspaceDialog from './WorkspaceDialog.vue';
 import { checkSession, clearLibraryCache, clearSession, offlineSession, readLibraryCache, request, saveLibraryCache, updateLineup, workspaceUser } from '../utils/workspaceApi.js';
+import { commitPastedSetlist, undoPastedSetlist } from '../utils/pasteSetlistSave.js';
 import { dateTile, formatDate, lyricSections, lyricsForEditor, pluralCount, readSetting, searchLibrary, setlistBuckets, songCount, writeSetting } from '../utils/workspace.js';
 import '../styles/workspace.css';
+import '../styles/editor-flows.css';
 
 const SongEditor = defineAsyncComponent(() => import('./SongEditor.vue'));
 const SetlistEditor = defineAsyncComponent(() => import('./SetlistEditor.vue'));
+const PasteSetlist = defineAsyncComponent(() => import('./PasteSetlist.vue'));
 const route = useRoute();
 const router = useRouter();
 const destinations = [{ id:'home', label:'Home', icon:House }, { id:'songs', label:'Songs', icon:Music2 }, { id:'setlists', label:'Setlists', icon:ListMusic }, { id:'me', label:'Me', icon:UserRound }];
@@ -53,7 +56,8 @@ const savedAt = ref(null);
 const busy = ref(false);
 const dirty = ref(false);
 const dirtyError = ref('');
-const working = computed(() => !offline.value && ['editor','admin'].includes(user.value?.role));
+const canPrepare = computed(() => ['editor','admin'].includes(user.value?.role));
+const working = computed(() => !offline.value && canPrepare.value);
 const theme = ref(readSetting('hymn:theme','system'));
 const themeMedia = matchMedia('(prefers-color-scheme:dark)');
 const desktop = matchMedia('(min-width:900px)');
@@ -65,6 +69,8 @@ const android = /Android/i.test(navigator.userAgent);
 const showInstallTip = computed(() => !desktopScreen.value && !installDismissed.value && (ios || android)
   && !navigator.standalone && !matchMedia('(display-mode:standalone)').matches);
 const popup = shallowRef(null);
+const pasteDirect=ref(false);
+const pasteDirty=ref(false);
 const session = ref(null);
 const railCreate = ref(null);
 const homePanel = ref(null);
@@ -310,6 +316,7 @@ function saveLocation(from) {
   if (from.name && !from.query.edit) tabs.set(from.name,{ name:from.name, params:from.params, query:from.query });
 }
 function guard(to, from) {
+  if(pasteDirect.value&&(busy.value||pasteDirty.value&&!window.confirm('Discard pasted songs? A draft will be kept.'))) return false;
   if (from.query.edit && (busy.value && !allowLeave || dirty.value && !confirm('Leave with unsaved changes?'))) return false;
   saveLocation(from);
 }
@@ -318,6 +325,7 @@ onBeforeRouteUpdate(guard);
 onBeforeRouteLeave(guard);
 watch(() => route.fullPath, async () => {
   popup.value = null;
+  closeDirectPaste();
   headerHidden.value = false;
   dirty.value = false;
   dirtyError.value = '';
@@ -374,6 +382,10 @@ function goBack() {
   else router.replace(parent);
 }
 function openEditor(type, mode='write', item=null) {
+  if(type==='setlists'&&mode==='paste'&&!item&&canPrepare.value) {
+    pasteDirect.value=true;
+    return;
+  }
   if (!working.value) return;
   if (type === 'setlists' && item && !details.value[item.id]) {
     fetchDetail(item.id).then(() => openEditor(type,mode,item)).catch(showError);
@@ -490,17 +502,16 @@ async function createSong(payload) {
   cacheLibrary();
   return song;
 }
-async function createSongForSetlist(payload) {
-  if (!working.value) return null;
-  try { return await createSong(payload); }
-  catch (error) { showError(error); return null; }
-}
-async function saveSong(payload) {
+async function saveSong(payload, unchanged=false) {
   if (!working.value || busy.value) return;
   const id = editorId.value;
   busy.value = true;
   dirtyError.value = '';
   try {
+    if(id && unchanged) {
+      await finalizeEditor({id},'songs');
+      return;
+    }
     const song = id ? (await request('/songs/'+id,{method:'PUT',body:payload})).song : await createSong(payload);
     if (id) {
       songs.value = songs.value.map(item => item.id===id?song:item).sort(byTitle);
@@ -525,18 +536,97 @@ function updateSetSummary(data) {
   details.value = { ...details.value,[summary.id]:data };
   cacheLibrary();
 }
+function closeDirectPaste() {
+  pasteDirect.value=false;
+  pasteDirty.value=false;
+}
+function applyPasteReceipt(receipt) {
+  const previous=new Map(receipt.before?.songs.map(row=>[Number(row.song_id),row])??[]);
+  songs.value=[...songs.value,...receipt.created.filter(song=>!songs.value.some(item=>item.id===song.id))].sort(byTitle);
+  const rows=receipt.ids.map((song_id,index)=>({
+    ...(previous.get(song_id)||songs.value.find(item=>Number(item.id)===song_id)),
+    song_id,position:index+1,
+  }));
+  invalidateDetail(receipt.schedule.id);
+  updateSetSummary({schedule:receipt.schedule,songs:rows});
+  if(receipt.before && editorBase?.id===receipt.schedule.id) editorBase={id:receipt.schedule.id,ids:[...receipt.ids]};
+}
+function pasteUndo(receipt,afterUndo) {
+  return async ()=>{
+    if(!working.value) throw new Error('Reconnect to undo these changes.');
+    const rollback=await undoPastedSetlist(request,receipt);
+    const id=receipt.schedule.id;
+    const knownSchedule=details.value[id]?.schedule??receipt.before?.schedule;
+    const removed=new Set(rollback.removed.map(song=>Number(song.id)));
+    songs.value=songs.value.filter(song=>!removed.has(Number(song.id)));
+    invalidateDetail(id);
+    if(receipt.before) {
+      const restored=receipt.before.songs.map(song=>Number(song.song_id));
+      updateSetSummary({schedule:knownSchedule,songs:receipt.before.songs});
+      if(editorBase?.id===id) editorBase={id,ids:restored};
+      afterUndo?.(restored);
+    } else {
+      const next={...details.value};
+      delete next[id];
+      details.value=next;
+      setlists.value=setlists.value.filter(item=>item.id!==id);
+      if(view.value==='setlists'&&routeId.value===id) await router.replace({name:'setlists'});
+    }
+    cacheLibrary();
+    if(rollback.retained.length) return 'Setlist reverted. Kept '+pluralCount(rollback.retained.length,'song')+' in the library because removal could not be verified.';
+  };
+}
+function reportPaste(receipt,afterUndo) {
+  const notice=receipt.before ? 'Updated songs in “'+receipt.schedule.name+'”' : 'Created “'+receipt.schedule.name+'” with '+songCount(receipt.ids.length);
+  message(notice,pasteUndo(receipt,afterUndo),10000);
+}
+async function savePaste(plan,afterUndo) {
+  if(!working.value||busy.value) throw new Error('Reconnect before saving.');
+  busy.value=true;
+  try {
+    const receipt=await commitPastedSetlist(request,plan);
+    applyPasteReceipt(receipt);
+    reportPaste(receipt,afterUndo);
+    return receipt;
+  } catch(error) {
+    if(error.retained?.length){
+      songs.value=[...songs.value,...error.retained.filter(song=>!songs.value.some(item=>item.id===song.id))].sort(byTitle);
+      cacheLibrary();
+    }
+    throw error;
+  } finally { busy.value=false; }
+}
+async function openPastedSetlist(receipt) {
+  closeDirectPaste();
+  await router.push({name:'setlists',params:{id:receipt.schedule.id}});
+}
+async function undoToast() {
+  const action=toast.value?.undo;
+  if(!action) return;
+  toast.value=null;
+  try { message(await action()||'Restored'); }
+  catch(error) { showError(error); }
+}
 async function saveSetlist(payload) {
   if (!working.value || busy.value) return;
   const id = editorId.value;
   busy.value = true;
   dirtyError.value = '';
-  const {song_ids,...fields} = payload;
+  const {song_ids,pendingSongs,...fields} = payload;
   let writesStarted = false;
   try {
     if (!id) {
-      const {schedule} = await request('/schedules',{method:'POST',body:payload});
-      const localLineup = song_ids.map((song_id,index) => ({...songs.value.find(song=>Number(song.id)===song_id),song_id,position:index+1}));
-      updateSetSummary({schedule,songs:localLineup});
+      let schedule;
+      if(pendingSongs) {
+        const receipt=await commitPastedSetlist(request,{entries:pendingSongs,fields});
+        schedule=receipt.schedule;
+        applyPasteReceipt(receipt);
+        reportPaste(receipt);
+      } else {
+        ({schedule}=await request('/schedules',{method:'POST',body:{...fields,song_ids}}));
+        const localLineup=song_ids.map((song_id,index)=>({...songs.value.find(song=>Number(song.id)===song_id),song_id,position:index+1}));
+        updateSetSummary({schedule,songs:localLineup});
+      }
       period.value = buckets.value.past.some(item=>item.id===schedule.id)?'past':'upcoming';
       await finalizeEditor(schedule,'setlists');
     } else {
@@ -557,7 +647,7 @@ async function saveSetlist(payload) {
       updateSetSummary(saved);
       await finalizeEditor(schedule,'setlists');
     }
-    message('Setlist saved');
+    if(!pendingSongs) message('Setlist saved');
   } catch(error) {
     if (id && writesStarted) {
       invalidateDetail(id);
@@ -653,11 +743,12 @@ function clearSaved() {
   message('Saved data cleared');
 }
 function handleKeys(event) {
-  if (!desktopScreen.value || popup.value || event.altKey || event.target?.closest?.('input,textarea,select,[contenteditable]')) return;
+  if (!desktopScreen.value || event.defaultPrevented || popup.value || event.altKey ||
+    event.target?.closest?.('input,textarea,select,dialog,[contenteditable]') || app.value?.querySelector('dialog[open]')) return;
   const key = event.key.toLowerCase();
   if (key==='/' || key==='k' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); openSearch(); return; }
   if (event.metaKey || event.ctrlKey) return;
-  if (key==='c' && working.value) showPopup('create','Create',railCreate.value);
+  if (key==='c' && canPrepare.value && !pasteDirect.value) showPopup('create','Create',railCreate.value);
   if (key==='r') recheck();
   if (key==='?') showPopup('shortcuts','Keyboard shortcuts');
   if (key==='escape' && mobileDetail.value && !busy.value) goBack();
@@ -705,16 +796,28 @@ function pullEnd(event) {
   if (dragRefresh!=null && event.changedTouches[0]?.clientY-dragRefresh>70 && homePanel.value?.scrollTop===0) recheck();
   dragRefresh=null;
 }
+let normalViewport={width:0,height:0};
 function keyboardViewport() {
   const viewport = window.visualViewport;
   if (!app.value || !viewport) return;
-  const field = document.activeElement?.matches('input,textarea,[contenteditable]');
-  if (!desktopScreen.value && field && viewport.scale === 1 && innerHeight-viewport.height > 100) {
+  const focused = document.activeElement;
+  const field = focused?.matches('input,textarea,[contenteditable]');
+  if (viewport.scale===1 && (!field || normalViewport.width!==innerWidth)) {
+    normalViewport={width:innerWidth,height:innerHeight};
+  }
+  const keyboard = !desktopScreen.value && matchMedia('(pointer:coarse)').matches && field && viewport.scale===1
+    && Math.max(innerHeight,normalViewport.height)-viewport.height>100;
+  const opening=keyboard&&!app.value.hasAttribute('data-keyboard-open');
+  app.value.toggleAttribute('data-keyboard-open',Boolean(keyboard));
+  if (keyboard) {
     app.value.style.setProperty('--viewport', Math.round(viewport.height) + 'px');
+    if(opening && focused.matches('.h-raw-lyrics')) {
+      requestAnimationFrame(()=>focused.scrollIntoView({block:'start'}));
+    }
   } else app.value.style.removeProperty('--viewport');
 }
 function warnOnUnload(event) {
-  if (!activeEditor.value || !dirty.value) return;
+  if (!(activeEditor.value&&dirty.value || pasteDirect.value&&pasteDirty.value)) return;
   event.preventDefault();
   event.returnValue = '';
 }
@@ -724,11 +827,13 @@ onMounted(() => {
   themeMedia.addEventListener('change',setTheme);
   desktop.addEventListener('change',updateDesktop);
   window.addEventListener('resize',measureList);
+  window.addEventListener('resize',keyboardViewport);
   window.addEventListener('online',recheck);
   window.addEventListener('offline',handleOffline);
   window.addEventListener('keydown',handleKeys);
   window.addEventListener('beforeunload',warnOnUnload);
   window.visualViewport?.addEventListener('resize',keyboardViewport);
+  keyboardViewport();
   document.addEventListener('visibilitychange',restoreForeground);
   loadLibrary().then(() => {
     if (!disposed) nextTick(measureList);
@@ -743,6 +848,7 @@ onBeforeUnmount(() => {
   themeMedia.removeEventListener('change',setTheme);
   desktop.removeEventListener('change',updateDesktop);
   window.removeEventListener('resize',measureList);
+  window.removeEventListener('resize',keyboardViewport);
   window.removeEventListener('online',recheck);
   window.removeEventListener('offline',handleOffline);
   window.removeEventListener('keydown',handleKeys);
@@ -763,7 +869,7 @@ onBeforeUnmount(() => {
         <button v-for="tab in destinations.slice(0,3)" :key="tab.id" class="h-nav-item" type="button"
           :aria-current="view === tab.id ? 'page' : undefined" @click="cycleTab(tab.id)"><component :is="tab.icon" /><span>{{ tab.label }}</span></button>
       </nav>
-      <button v-if="working" ref="railCreate" type="button" class="h-primary h-create" title="Create (C)" aria-label="Create"
+      <button v-if="canPrepare" ref="railCreate" type="button" class="h-primary h-create" title="Create (C)" aria-label="Create"
         @click="showPopup('create','Create',$event.currentTarget)"><Plus /><span>Create</span></button>
       <button class="h-nav-item h-rail-me" type="button" :aria-current="view === 'me' ? 'page' : undefined" aria-label="Account"
         @click="showPopup('account','Account',$event.currentTarget)">
@@ -897,7 +1003,7 @@ onBeforeUnmount(() => {
                   :busy="busy" :can-save="working" :draft-key="draftKey" @dirty="dirty=$event" @save="saveSong" @cancel="goBack" />
                 <SetlistEditor v-else-if="!isSongView && (!editorId || setlistDetail)" :key="editorKey" :setlist="editorId ? setlistDetail.schedule : null"
                   :lineup="editorId ? lineup : emptyRows" :songs="activeSongList" :flow="route.query.flow" :busy="busy" :can-save="working"
-                  :draft-key="draftKey" :create-song="createSongForSetlist" @dirty="dirty=$event" @save="saveSetlist" @cancel="goBack" />
+                  :draft-key="draftKey" :paste-songs="savePaste" @dirty="dirty=$event" @save="saveSetlist" @cancel="goBack" />
                 <p v-else class="h-meta">{{ isSongView ? 'This song is unavailable.' : detailErrors[routeId] || 'Loading setlist…' }}</p>
               </template>
 
@@ -917,7 +1023,10 @@ onBeforeUnmount(() => {
                 <section v-for="(section,index) in lyrics" :key="index" class="h-lyric-section">
                   <h2 v-if="section.label" class="h-meta">{{ section.label }}</h2><p>{{ section.text }}</p>
                 </section>
-                <p v-if="!lyrics.length" class="h-meta">No lyrics added yet.</p>
+                <div v-if="!lyrics.some(section=>section.text.trim())" class="h-actions">
+                  <span class="h-chip">No lyrics</span>
+                  <button v-if="working && !isSessionReading" type="button" class="h-ghost" @click="openEditor('songs','paste',readingSong)">Add lyrics</button>
+                </div>
                 <section v-if="songMembership.length && !isSessionReading" class="h-used">
                   <h2>Used in</h2><LibraryRows :items="songMembership.map(item=>({item}))" kind="setlists" @open="openItem('setlists',$event)"
                     @menu="(item,anchor) => openMenu('setlists',item,anchor)" />
@@ -959,6 +1068,7 @@ onBeforeUnmount(() => {
               </div>
             </div>
           </section>
+          <div v-show="activeEditor" id="h-editor-footer-host"></div>
           <section v-if="activeSessionSong && !activeEditor" class="h-session" aria-label="Setlist session">
             <div class="h-track"><p class="h-meta">Song {{ sessionIndex+1 }} of {{ lineup.length }}</p><strong>{{ activeSessionSong.title }}</strong></div>
             <button class="h-icon" type="button" aria-label="Previous song" title="Previous song ([)" :disabled="sessionIndex<1" @click="stepSession(-1)"><ChevronLeft /></button>
@@ -988,14 +1098,16 @@ onBeforeUnmount(() => {
 
     <nav class="h-bottom" aria-label="Workspace">
       <template v-for="tab in destinations" :key="tab.id">
-        <button v-if="tab.id==='setlists' && working" type="button" class="h-bottom-create" @click="showPopup('create','Create',$event.currentTarget)"><span><Plus /></span>Create</button>
+        <button v-if="tab.id==='setlists' && canPrepare" type="button" class="h-bottom-create" @click="showPopup('create','Create',$event.currentTarget)"><span><Plus /></span>Create</button>
         <button type="button" :aria-current="view===tab.id?'page':undefined" @click="cycleTab(tab.id)"><span><component :is="tab.icon" /></span>{{ tab.label }}</button>
       </template>
     </nav>
 
+    <PasteSetlist v-if="pasteDirect" :songs="activeSongList" create-setlist :can-save="working" :loading="loading"
+      :draft-key="'hymn:paste:'+owner" :confirm-songs="savePaste" @dirty="pasteDirty=$event" @close="closeDirectPaste" @completed="openPastedSetlist" />
     <WorkspaceDialog v-if="popup" :key="popup.kind" :title="popup.title" :kind="popup.kind" :anchor="popup.anchor" @close="popup=null">
       <div v-if="popup.kind==='create'" class="h-menu">
-        <button v-for="action in createActions" :key="action.label" type="button" data-menu-item @click="popup=null; openEditor(action.type,action.mode)">
+        <button v-for="action in createActions" :key="action.label" type="button" data-menu-item :disabled="!working&&action.label!=='Paste setlist'" @click="popup=null; openEditor(action.type,action.mode)">
           <component :is="action.icon" /><span><strong>{{ action.label }}</strong><small>{{ action.hint }}</small></span>
         </button>
       </div>
@@ -1021,6 +1133,8 @@ onBeforeUnmount(() => {
       </template>
       <div v-else-if="popup.kind==='context'" class="h-menu">
         <button v-if="popup.type==='songs'" type="button" data-menu-item @click="openItem('songs',{id:popup.item.id ?? popup.item.song_id}); popup=null"><BookOpen /> Open</button>
+        <button v-if="working&&popup.type==='songs'&&popup.item.id&&!lyricSections(popup.item).some(section=>section.text.trim())" type="button"
+          data-menu-item @click="openEditor('songs','paste',popup.item); popup=null"><PenLine /> Add lyrics</button>
         <button v-if="popup.type==='songs' && readingSong" type="button" data-menu-item @click="showPopup('display','Display',$event.currentTarget)"><Type /> Display</button>
         <button v-if="working && popup.type==='songs' && activeSetlists.length" type="button" data-menu-item @click="showPopup('attach','Add to setlist',null,popup.item)"><ListPlus /> Add to setlist</button>
         <button v-if="working && popup.type==='setlists'" type="button" data-menu-item @click="openEditor('setlists','write',popup.item); popup=null"><PenLine /> Edit</button>
@@ -1065,7 +1179,7 @@ onBeforeUnmount(() => {
     </WorkspaceDialog>
 
     <div v-if="toast" class="h-toast" role="status">{{ toast.text }}
-      <button v-if="toast.undo" class="h-ghost" type="button" @click="toast.undo(); message('Restored')">Undo</button>
+      <button v-if="toast.undo" class="h-ghost" type="button" @click="undoToast">Undo</button>
     </div>
   </div>
 </template>

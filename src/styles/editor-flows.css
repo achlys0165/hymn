@@ -1,0 +1,89 @@
+.h-app textarea.h-growing {
+  display: block;
+  field-sizing: content;
+  overflow: hidden;
+  resize: none;
+  max-height: none;
+  line-height: 1.6;
+}
+.h-app textarea.h-raw-lyrics { min-height: 40dvh; scroll-margin-block-start: calc(var(--top) + 8px); }
+.h-lyrics-work,.h-lyrics-write,.h-lyrics-preview { min-width: 0; display: grid; align-content: start; gap: 12px; }
+.h-lyrics-split { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; }
+.h-lyrics-preview { border: 1px solid var(--h-border); border-radius: 14px; padding: 14px; }
+.h-lyrics-preview .h-lyric-section { margin-bottom: 12px; }
+.h-lyrics-preview .h-lyric-section p { text-align: left; }
+.h-label-buttons,.h-lyric-outline { display: flex; gap: 8px; overflow-x: auto; padding: 3px; scrollbar-width: thin; }
+.h-label-buttons button,.h-lyric-outline button { flex: none; }
+.h-suggestions { display: grid; gap: 10px; border: 1px solid var(--h-border); border-radius: 14px; padding: 12px; }
+.h-field-segments {
+  position: relative; isolation: isolate; display: inline-grid; grid-template-columns: repeat(var(--options),minmax(0,1fr));
+  border-radius: 999px; background: var(--h-raised); padding: 4px; min-width: 0; width: fit-content;
+}
+.h-field-segments::before {
+  content: ''; position: absolute; z-index: -1; inset: 4px auto 4px 4px; width: calc((100% - 8px)/var(--options));
+  border-radius: 999px; background: var(--h-surface); box-shadow: var(--h-shadow);
+  transform: translateX(calc(100% * var(--choice))); transition: transform 150ms ease;
+}
+.h-app .h-field-segments button { min-height: var(--target); padding: 5px 11px; border-radius: 999px; color: var(--h-muted); font-size: 14px; }
+.h-app .h-field-segments [aria-pressed="true"] { color: var(--h-text); font-weight: 650; }
+.h-app button.h-field-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: start; }
+.h-listbox-field { position: relative; }
+.h-listbox {
+  position: absolute; z-index: 6; inset: calc(100% + 4px) 0 auto; padding: 5px !important; max-height: 220px; overflow: auto;
+  background: var(--h-surface); color: var(--h-text); border: 1px solid var(--h-border); border-radius: 12px; box-shadow: var(--h-shadow); list-style: none;
+}
+.h-listbox li { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--target); padding: 0 8px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+.h-listbox [data-active],.h-listbox [aria-selected="true"] { background: var(--h-tint); color: var(--h-accent-text); }
+.h-calendar-month { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.h-calendar-grid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); text-align: center; gap: 3px; }
+.h-calendar-grid span { color: var(--h-muted); font-size: 13px; padding-block: 4px; }
+.h-calendar-grid .h-icon { min-width: 0; aspect-ratio: 1; }
+.h-calendar-grid [aria-pressed="true"] { background: var(--h-tint); color: var(--h-accent-text); }
+.h-dialog[data-kind="paste-flow"] {
+  width: min(100% - 32px,880px); height: 80dvh; max-height: 80dvh; min-height: 0;
+}
+.h-dialog[data-kind="paste-flow"] > .h-dialog-header { border-bottom: 1px solid var(--h-border); }
+.h-dialog[data-kind="paste-flow"] > .h-dialog-body { display: grid; overflow: hidden; padding: 0; }
+.h-paste-layout { display: grid; grid-template-columns: 2fr 3fr; min-height: 0; }
+.h-paste-pane { min-height: 0; min-width: 0; overflow: auto; overscroll-behavior: contain; padding: 16px; }
+.h-paste-write { border-inline-end: 1px solid var(--h-border); }
+.h-paste-write .h-secondary { margin-top: 10px; }
+.h-app textarea.h-paste-input { min-height: min(38dvh,340px); }
+.h-paste-fields { display: grid; gap: 8px; padding-bottom: 12px; }
+.h-paste-summary { display: grid; gap: 8px; margin-bottom: 8px; }
+.h-paste-rows { list-style: none; }
+.h-paste-rows li { border-bottom: 1px solid var(--h-border); padding-inline-start: 8px; border-inline-start: 2px solid transparent; }
+.h-paste-rows li.needs-attention { border-inline-start-color: var(--h-section); }
+.h-paste-row { display: flex; align-items: center; gap: 8px; min-height: 52px; min-width: 0; }
+.h-paste-row .h-ghost { padding-inline: 6px; }
+.h-paste-status { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--h-muted); }
+.h-app .h-paste-status svg { width: 16px; height: 16px; }
+.h-paste-extra,.h-pasted-line { margin: 0 0 7px 38px !important; }
+.h-paste-extra.h-actions { margin-top: 4px !important; }
+.h-paste-rows .is-skipped .h-row-copy { text-decoration: line-through; opacity: .65; }
+.h-paste-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
+.h-paste-outcome { min-width: 0; }
+.h-paste-outcome .h-ghost { min-height: var(--target); padding-inline: 0; text-align: left; }
+.h-paste-buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; }
+.h-spinning { animation: h-spin .8s linear infinite; }
+.h-dialog[data-kind="song-picker"] { max-height: min(75dvh,600px); }
+@media(min-width:900px) {
+  .h-dialog[data-kind="song-picker"] { max-width: 360px; }
+  .h-dialog[data-kind="song-picker"][data-anchored] {
+    inset: auto; left: var(--menu-left,8px); top: var(--menu-top,8px); margin: 0;
+  }
+}
+@media(max-width:899px) {
+  .h-app[data-keyboard-open] .h-bottom { display: none; }
+  .h-app[data-keyboard-open] #h-editor-footer-host { display: flex; flex-direction: column; }
+  .h-app[data-keyboard-open] .h-editor-toolbar { order: 1; }
+  .h-dialog[data-kind="paste-flow"] { inset: 0; width: 100%; max-width: none; height: var(--viewport,100dvh); max-height: var(--viewport,100dvh); margin: 0; border: 0; border-radius: 0; padding-top: env(safe-area-inset-top); }
+  .h-dialog[data-kind="song-picker"] { inset: auto 0 0; width: 100%; max-width: none; margin: 0; border-radius: 24px 24px 0 0; }
+  .h-paste-layout { grid-template-columns: minmax(0,1fr); }
+  .h-paste-write { border: 0; }
+  .h-app textarea.h-paste-input { min-height: min(40dvh,320px); }
+  .h-paste-row { min-height: 56px; flex-wrap: wrap; }
+  .h-paste-status { font-size: 12px; }
+  .h-paste-footer { display: grid; grid-template-columns: minmax(0,1fr); gap: 5px; }
+  .h-paste-buttons { display: grid; grid-template-columns: minmax(0,1fr); gap: 6px; }
+}

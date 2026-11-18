@@ -1,5 +1,6 @@
 import { shallowRef } from 'vue';
-import { lineupChanges, readSetting, writeSetting } from './workspace.js';
+import { readSetting, writeSetting } from './workspace.js';
+import { writeLineup } from './pasteSetlistSave.js';
 
 const base = import.meta.env.VITE_API_URL || '/api';
 const cachePrefix = 'hymn:library:';
@@ -84,8 +85,5 @@ export async function checkSession({ offline = false } = {}) {
 }
 
 export async function updateLineup(id, current, desired) {
-  const { add, remove, reorder } = lineupChanges(current, desired);
-  for (const songId of add) await request('/schedules/' + id + '/songs', { method: 'POST', body: { song_id: songId } });
-  for (const songId of remove) await request('/schedules/' + id + '/songs/' + songId, { method: 'DELETE' });
-  if (reorder) await request('/schedules/' + id + '/songs/order', { method: 'PUT', body: { song_ids: desired } });
+  return writeLineup(request,id,current,desired);
 }

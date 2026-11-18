@@ -165,7 +165,7 @@
 .h-search input::placeholder { color: var(--h-muted); }
 .h-search kbd { margin-inline-start: auto; color: var(--h-muted); font: inherit; font-size: 13px; }
 .h-list-tools { display: flex; align-items: center; gap: 5px; margin: 8px 0; padding-block: 2px; }
-.h-filters { display: flex; gap: 7px; align-items: center; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; padding: 3px; }
+.h-filters { display: flex; gap: 7px; align-items: center; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; padding: 3px 16px 3px 3px; mask-image: linear-gradient(to right,#000 calc(100% - 9px),transparent); }
 .h-app .h-chip {
   min-width: 0; display: inline-flex; align-items: center; gap: 6px; background: var(--h-raised); color: var(--h-muted);
   padding: 5px 11px; border-radius: 999px; font-size: 13px; white-space: nowrap;
@@ -206,10 +206,9 @@
 .h-capture input { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
 .h-capture:focus-within { outline: 2px solid var(--h-accent-text); outline-offset: 2px; }
 .h-lyric-edit { border-inline-start: 3px solid var(--h-section); border-radius: 14px; background: var(--h-surface); padding: 12px; display: grid; gap: 10px; }
-.h-editor-footer {
-  display: flex; flex-direction: column; gap: 8px; background: var(--h-canvas); position: sticky; bottom: -1px;
-  padding: 12px 0; border-top: 1px solid var(--h-border); z-index: 1;
-}
+#h-editor-footer-host { min-width: 0; background: var(--h-surface); border-top: 1px solid var(--h-border); }
+.h-editor-footer { display: flex; flex-direction: column; gap: 6px; padding: 8px 16px; }
+.h-editor-toolbar { min-width: 0; padding: 5px 12px 0; }
 .h-inline-undo { background: var(--h-raised); border-radius: 12px; color: var(--h-text); padding-inline: 12px; }
 .h-grab { cursor: grab !important; touch-action: none !important; }
 .h-dialog {
@@ -237,10 +236,6 @@
 .h-search-results { margin-top: 14px; }
 .h-display-wake,.h-confirm { margin-top: 18px; }
 .h-shortcuts { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; font-size: 15px; }
-.h-paste-results { list-style: none; }
-.h-paste-results>li { padding: 10px 0; border-bottom: 1px solid var(--h-border); }
-.h-paste-method { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; border: 0; padding-block: 12px; }
-.h-paste-method input { accent-color: var(--h-accent-text); }
 .h-app .h-picker-row { justify-content: space-between; }
 .h-toast {
   position: fixed; z-index: 5; bottom: calc(var(--bottom) + 8px); left: 50%; transform: translateX(-50%);

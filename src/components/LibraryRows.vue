@@ -1,6 +1,6 @@
 <script setup>
 import { nextTick, onBeforeUnmount } from 'vue';
-import { Ellipsis, Trash2 } from 'lucide-vue-next';
+import { CalendarDays, Ellipsis, Trash2 } from 'lucide-vue-next';
 import { dateTile, lyricSections, monogram, songCount } from '../utils/workspace.js';
 
 defineProps({
@@ -63,7 +63,7 @@ onBeforeUnmount(cancelPress);
       >
         <span v-if="kind === 'songs'" class="h-monogram" :data-tone="monogram(item.title).tone" aria-hidden="true">{{ monogram(item.title).initials }}</span>
         <span v-else-if="dateTile(item.date)" class="h-date" aria-hidden="true"><strong>{{ dateTile(item.date).day }}</strong>{{ dateTile(item.date).month }}</span>
-        <span v-else class="h-date" aria-label="No date">—</span>
+        <span v-else class="h-date h-undated" title="No date"><CalendarDays aria-label="No date" /></span>
         <span class="h-row-copy">
           <strong>{{ kind === 'songs' ? item.title : item.name }}</strong>
           <small v-if="kind === 'songs' && note(item)">{{ note(item) }}</small>

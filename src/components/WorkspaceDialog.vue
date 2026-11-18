@@ -1,10 +1,11 @@
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, useId } from 'vue';
 import { X } from 'lucide-vue-next';
 
-const props = defineProps({ title: String, kind: String, anchor: Object });
+const props = defineProps({ title: String, kind: String, anchor: Object, noAutoFocus:Boolean });
 const emit = defineEmits(['close']);
 const dialog = ref(null);
+const titleId=useId();
 let opener;
 let sheetStart = null;
 
@@ -40,7 +41,8 @@ onMounted(async () => {
   positionMenu();
   window.addEventListener('resize', positionMenu);
   await nextTick();
-  (dialog.value?.querySelector('[data-initial-focus], [data-menu-item]') || dialog.value)?.focus();
+  const selector=props.noAutoFocus?'[data-initial-focus]':'[data-initial-focus], [data-menu-item]';
+  (dialog.value?.querySelector(selector) || dialog.value)?.focus();
 });
 
 onBeforeUnmount(() => {
@@ -52,7 +54,7 @@ onBeforeUnmount(() => {
 
 <template>
   <dialog
-    ref="dialog" class="h-dialog" :data-kind="kind" aria-labelledby="h-dialog-title"
+    ref="dialog" class="h-dialog" :data-kind="kind" :data-anchored="Boolean(anchor) || undefined" :aria-labelledby="titleId"
     @cancel.prevent="emit('close')" @click="clickBackdrop" @keydown="moveFocus"
   >
     <header class="h-dialog-header">
@@ -61,7 +63,7 @@ onBeforeUnmount(() => {
         @pointercancel="sheetStart = null"
         @pointerup="event => { if (sheetStart !== null && event.clientY - sheetStart > 40) emit('close'); sheetStart = null }"
       ></div>
-      <h2 id="h-dialog-title">{{ title }}</h2>
+      <h2 :id="titleId">{{ title }}</h2>
       <button class="h-icon" type="button" aria-label="Close" @click="emit('close')"><X /></button>
     </header>
     <div class="h-dialog-body"><slot /></div>

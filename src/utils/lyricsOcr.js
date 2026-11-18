@@ -1,5 +1,3 @@
-import { createWorker } from 'tesseract.js';
-
 let workerPromise = null;
 let progressListener = null;
 
@@ -7,12 +5,12 @@ let progressListener = null;
 // locally means scanning a photo never needs an internet connection.
 function getWorker() {
   if (!workerPromise) {
-    workerPromise = createWorker('eng', 1, {
+    workerPromise = import('tesseract.js').then(({createWorker}) => createWorker('eng', 1, {
       workerPath: '/tessdata/worker.min.js',
       corePath: '/tessdata/tesseract-core-lstm.wasm.js',
       langPath: '/tessdata',
       logger: (message) => progressListener?.(message),
-    });
+    })).catch(error => { workerPromise = null; throw error; });
   }
   return workerPromise;
 }

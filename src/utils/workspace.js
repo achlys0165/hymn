@@ -2,7 +2,21 @@ const weekdays = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'sh
 const longDates = new Intl.DateTimeFormat('en-US', { dateStyle: 'full' });
 const months = new Intl.DateTimeFormat('en-US', { month: 'short' });
 const songPlural = new Intl.PluralRules('en');
-const heading = /^([ \t]*(?:\[[^\]\r\n]+\]|(?:verse|chorus|pre[- ]?chorus|bridge|intro|outro|tag|ending|refrain)(?:[ \t]+\d+)?)[ \t]*)(\r?\n|$)/i;
+const labelNames = {
+  verse:'Verse', chorus:'Chorus', prechorus:'Pre-chorus', bridge:'Bridge', intro:'Intro', outro:'Outro',
+  ending:'Ending', tag:'Tag', interlude:'Interlude', instrumental:'Instrumental', refrain:'Refrain', hook:'Hook',
+};
+const labelPattern = /^(verse|pre[- \t]?chorus|chorus|bridge|intro|outro|ending|tag|interlude|instrumental|refrain|hook)(?:[ \t]+(\d+[A-Z]?|[A-Z]))?[ \t]*:?$/i;
+
+export function lyricLabel(line) {
+  const trim = String(line).trim().replace(/:$/, '').trimEnd();
+  const bracketed = trim.match(/^\[([^\]]+)\]$/);
+  const wrapped = bracketed || trim.match(/^\(([^)]+)\)$/);
+  const label = wrapped ? wrapped[1].trim() : trim;
+  const match = label.match(labelPattern);
+  if (match) return labelNames[match[1].toLowerCase().replace(/[- \t]/g,'')] + (match[2] ? ' ' + match[2].toUpperCase() : '');
+  return bracketed ? label : '';
+}
 
 export function readSetting(key, fallback) {
   try {
@@ -57,17 +71,30 @@ export function pluralCount(count, singular) {
 }
 
 export function splitLyrics(raw = '') {
-  return String(raw).split(/(\r?\n(?:[ \t]*\r?\n)+)/).reduce((sections, part, index, parts) => {
-    if (index % 2) return sections;
-    if (!part && index === parts.length - 1) return sections;
-    const match = part.match(heading);
-    sections.push({
-      prefix: match?.[0] ?? '',
-      text: part.slice(match?.[0].length ?? 0),
-      separator: parts[index + 1] ?? '',
-    });
-    return sections;
-  }, []);
+  const parts = String(raw).split(/(\r?\n(?:[ \t]*\r?\n)+)/);
+  const sections = [];
+  let offset = 0;
+  function push(chunk,separator) {
+    const first = chunk.match(/^[^\n]*(?:\n|$)/)?.[0] ?? '';
+    const prefix = lyricLabel(first) ? first : '';
+    sections.push({ prefix,text:chunk.slice(prefix.length),separator,start:offset,end:offset+chunk.length });
+    offset += chunk.length+separator.length;
+  }
+  for (let i=0;i<parts.length;i+=2) {
+    const part=parts[i];
+    if (!part && i===parts.length-1) break;
+    let from=0;
+    for (const delimiter of part.matchAll(/\r?\n/g)) {
+      const after=delimiter.index+delimiter[0].length;
+      const newline=part.indexOf('\n',after);
+      if (lyricLabel(part.slice(after,newline<0?part.length:newline))) {
+        push(part.slice(from,delimiter.index),delimiter[0]);
+        from=after;
+      }
+    }
+    push(part.slice(from),parts[i+1]??'');
+  }
+  return sections;
 }
 
 export function joinLyrics(sections) {
@@ -78,7 +105,28 @@ export function joinLyrics(sections) {
 }
 
 export function sectionName(section) {
-  return section.prefix.trim().replace(/^\[(.*)\]$/, '$1');
+  return lyricLabel(section.prefix);
+}
+
+export function normalizeLyricLabels(raw) {
+  return joinLyrics(splitLyrics(raw).map((section,index,sections) => {
+    const label=sectionName(section);
+    return {
+      ...section,
+      prefix:label ? '['+label+']'+(section.text || section.prefix.endsWith('\n') ? '\n' : '') : '',
+      separator:section.separator && sections[index+1]?.prefix && !/\r?\n[ \t]*\r?\n/.test(section.separator)
+        ? '\n\n' : section.separator,
+    };
+  }));
+}
+
+export function tidyPastedLyrics(raw) {
+  return String(raw).replace(/\r\n?/g,'\n').replace(/[ \t]+$/gm,'').replace(/\n{4,}/g,'\n\n')
+    .split('\n').reduce((lines,line)=>{
+      if (lines.length && lines.at(-1) && lyricLabel(line)) lines.push('');
+      lines.push(line);
+      return lines;
+    },[]).join('\n');
 }
 
 export function lyricSections(song) {
