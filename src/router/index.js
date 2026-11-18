@@ -1,10 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import Login from '@/components/Login.vue';
-import Main from '@/components/Main.vue';
+import { checkSession, workspaceUser } from '../utils/workspaceApi.js';
+
+const workspace = () => import('../components/Main.vue');
 
 const routes = [
-  { path: '/login', component: Login, meta: { public: true } },
-  { path: '/', component: Main, meta: { requiresAuth: true } },
+  { path: '/login', name: 'login', component: () => import('../components/Login.vue') },
+  { path: '/', name: 'home', component: workspace, meta: { requiresAuth: true } },
+  { path: '/songs/:id(\\d+)?', name: 'songs', component: workspace, meta: { requiresAuth: true } },
+  { path: '/setlists/:id(\\d+)?', name: 'setlists', component: workspace, meta: { requiresAuth: true } },
+  { path: '/me', name: 'me', component: workspace, meta: { requiresAuth: true } },
 ];
 
 const router = createRouter({
@@ -12,29 +16,13 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach(async (to, from, next) => {
-  if (!to.meta.requiresAuth && !to.meta.public) {
-    next();
-    return;
+router.beforeEach(async (to, from) => {
+  if (to.meta.requiresAuth) {
+    if (from.meta.requiresAuth && workspaceUser.value) return true;
+    return await checkSession({ offline: true }) ? true : { name: 'login', query: { next: to.fullPath } };
   }
-
-  // The session cookie is httpOnly, so it can't be read here directly —
-  // the only way to know if it's still valid is to ask the server.
-  let isLoggedIn = false;
-  try {
-    const res = await fetch('/api/auth/me', { credentials: 'include' });
-    isLoggedIn = res.ok;
-  } catch {
-    isLoggedIn = false;
-  }
-
-  if (to.meta.requiresAuth && !isLoggedIn) {
-    next('/login');
-  } else if (to.meta.public && isLoggedIn) {
-    next('/');
-  } else {
-    next();
-  }
+  if (to.name === 'login' && !from.meta.requiresAuth && await checkSession()) return { name: 'home' };
+  if (!to.matched.length) return { name: 'home' };
 });
 
 export default router;

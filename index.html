@@ -1,9 +1,21 @@
 <!DOCTYPE html>
-<html lang="">
+<html lang="en">
   <head>
     <meta charset="UTF-8">
     <link rel="icon" href="/Logo1.png">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+    <meta name="theme-color" content="#fbf8fa">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="preload" href="/node_modules/@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <script>
+      (() => {
+        let choice = 'system';
+        try { choice = JSON.parse(localStorage.getItem('hymn:theme')) || 'system'; } catch {}
+        const dark = choice === 'dark' || (choice !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        document.querySelector('meta[name="theme-color"]').content = dark ? '#120e12' : '#fbf8fa';
+      })();
+    </script>
     <title>Hymn</title>
   </head>
   <body>

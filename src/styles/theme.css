@@ -1,0 +1,43 @@
+@font-face {
+  font-family: "Figtree Variable";
+  src: url("@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+:root {
+  color-scheme: light;
+  --h-canvas: #fbf8fa;
+  --h-surface: #fff;
+  --h-raised: #f6f0f4;
+  --h-pressed: #f1e7ee;
+  --h-text: #1f1720;
+  --h-muted: #675b68;
+  --h-accent: #d481c7;
+  --h-accent-text: #8a3d7d;
+  --h-accent-ink: #24131f;
+  --h-tint: #f6e7f3;
+  --h-border: #eae2e9;
+  --h-section: #b38aa9;
+  --h-danger: #a52436;
+  --h-danger-fill: #a52436;
+  --h-shadow: 0 1px 2px #1f17200a, 0 8px 24px #1f17200a;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --h-canvas: #120e12;
+  --h-surface: #19141a;
+  --h-raised: #231d24;
+  --h-pressed: #302632;
+  --h-text: #f8f3f7;
+  --h-muted: #c0b4bf;
+  --h-accent-text: #f0a8df;
+  --h-tint: #362238;
+  --h-border: #322934;
+  --h-section: #a37698;
+  --h-danger: #ffadb6;
+  --h-shadow: none;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #app { min-height: 100%; }
+body { margin: 0; background: var(--h-canvas); color: var(--h-text); font: 400 16px/1.5 "Figtree Variable", system-ui, sans-serif; }

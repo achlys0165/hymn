@@ -1,4 +1,6 @@
 <script>
+import '../styles/login.css';
+
 // API_BASE: set VITE_API_URL in your frontend .env if the backend isn't
 // reachable at a same-origin "/api" path (see backend README for why
 // same-origin + a dev proxy is the simplest, most secure setup).
@@ -12,6 +14,7 @@ export default {
       // Form fields
       username: '',
       password: '',
+      showPassword: false,
       remember: false,
 
       // Registration fields
@@ -38,7 +41,6 @@ export default {
   },
 
   async mounted() {
-    this.generateParticles();
     // Only a non-sensitive convenience value (the username to pre-fill) is
     // ever stored client-side. Actual login state lives in an httpOnly
     // cookie set by the server, which JS here can't read or forge.
@@ -65,25 +67,6 @@ export default {
   },
 
   methods: {
-    generateParticles() {
-      const container = this.$refs.particles;
-      if (!container) return;
-      container.innerHTML = '';
-      for (let i = 0; i < 18; i++) {
-        const p = document.createElement('div');
-        p.className = 'particle';
-        const size = 2 + Math.random() * 4;
-        p.style.cssText = `
-          width: ${size}px; height: ${size}px;
-          left: ${Math.random() * 100}%;
-          animation-duration: ${12 + Math.random() * 16}s;
-          animation-delay: ${Math.random() * -20}s;
-          opacity: ${0.3 + Math.random() * 0.4};
-        `;
-        container.appendChild(p);
-      }
-    },
-
     clearErrors() {
       this.userError = false;
       this.passwordError = false;
@@ -105,9 +88,7 @@ export default {
       if (!this.registrationEnabled && !this.isRegistering) return;
       this.isRegistering = !this.isRegistering;
       this.clearErrors();
-      this.$nextTick(() => {
-        this.generateParticles();
-      });
+      this.showPassword = false;
     },
 
     async onSubmit() {
@@ -153,7 +134,10 @@ export default {
           localStorage.removeItem('hymn_remember_user');
         }
 
-        this.$router.push('/');
+        const next = this.$route.query.next;
+        const destination = typeof next === 'string' && next.startsWith('/') && !next.startsWith('//')
+          && this.$router.resolve(next).meta.requiresAuth ? next : '/';
+        this.$router.replace(destination);
       } catch (err) {
         this.showToast(err.message || 'Login failed');
       } finally {
@@ -218,28 +202,23 @@ export default {
 
 <template>
   <div class="login-page">
-    <!-- Background layers -->
-    <div class="bg-gradient"></div>
-    <div class="glare"></div>
-    <div class="noise"></div>
-    <div class="particles" ref="particles"></div>
-
     <!-- Login card -->
     <div class="login-wrap">
       <div class="login-card">
         <div class="logo-area">
           <div class="logo-mark">
-            <img src="/Logo.png" alt="Hymn Logo" width="28" height="28" class="rounded-md"/> 
+            <img src="/Logo1.png" alt="" width="36" height="36">
           </div>
           <span class="logo-name">Hymn</span>
         </div>
-        <p class="tagline">TOP-Multimedia Songs and Schedules</p>
+        <h1>{{ isRegistering ? 'Create account' : 'Sign in' }}</h1>
 
         <!-- LOGIN FORM -->
         <form v-if="!isRegistering" @submit.prevent="onSubmit" autocomplete="off">
           <div class="field-group">
-            <div class="field-label">Username</div>
+            <label class="field-label" for="login-username">Username</label>
             <input
+              id="login-username"
               class="field-input"
               :class="{ 'field-input-error': userError }"
               type="text"
@@ -252,16 +231,17 @@ export default {
           </div>
 
           <div class="field-group">
-            <div class="field-label">Password</div>
-            <input
+            <label class="field-label" for="login-password">Password</label>
+            <div class="login-password"><input
+              id="login-password"
               class="field-input"
               :class="{ 'field-input-error': passwordError }"
-              type="password"
+              :type="showPassword ? 'text' : 'password'"
               v-model="password"
               placeholder="Enter your password"
               autocomplete="current-password"
               @input="clearErrors"
-            />
+            /><button type="button" class="link-btn" :aria-pressed="showPassword" @click="showPassword = !showPassword">{{ showPassword ? 'Hide' : 'Show' }}</button></div>
             <div v-if="passwordError" class="field-error">Password is required</div>
           </div>
 
@@ -270,11 +250,10 @@ export default {
               <input type="checkbox" v-model="remember" />
               <span class="remember-label">Remember me</span>
             </label>
-            <a href="#" class="forgot-link">Forgot password?</a>
           </div>
 
           <button type="submit" class="btn btn-accent" :disabled="isSubmitting">
-            {{ isSubmitting ? 'Signing in…' : 'Sign In' }}
+            {{ isSubmitting ? 'Signing in…' : 'Sign in' }}
           </button>
 
           <div v-if="registrationEnabled" class="switch-mode">
@@ -286,8 +265,9 @@ export default {
         <!-- REGISTER FORM -->
         <form v-else @submit.prevent="onRegister" autocomplete="off">
           <div class="field-group">
-            <div class="field-label">Username *</div>
+            <label class="field-label" for="register-username">Username</label>
             <input
+              id="register-username"
               class="field-input"
               :class="{ 'field-input-error': regUsernameError }"
               type="text"
@@ -300,8 +280,9 @@ export default {
           </div>
 
           <div class="field-group">
-            <div class="field-label">Display Name</div>
+            <label class="field-label" for="register-display-name">Display name · Optional</label>
             <input
+              id="register-display-name"
               class="field-input"
               type="text"
               v-model="regDisplayName"
@@ -311,8 +292,9 @@ export default {
           </div>
 
           <div class="field-group">
-            <div class="field-label">Password *</div>
+            <label class="field-label" for="register-password">Password</label>
             <input
+              id="register-password"
               class="field-input"
               :class="{ 'field-input-error': regPasswordError }"
               type="password"
@@ -325,8 +307,9 @@ export default {
           </div>
 
           <div class="field-group">
-            <div class="field-label">Confirm Password *</div>
+            <label class="field-label" for="register-confirm">Confirm password</label>
             <input
+              id="register-confirm"
               class="field-input"
               :class="{ 'field-input-error': regConfirmError }"
               type="password"
@@ -339,7 +322,7 @@ export default {
           </div>
 
           <button type="submit" class="btn btn-accent" :disabled="isSubmitting">
-            {{ isSubmitting ? 'Creating account…' : 'Create Account' }}
+            {{ isSubmitting ? 'Creating account…' : 'Create account' }}
           </button>
 
           <div class="switch-mode">
@@ -351,6 +334,6 @@ export default {
       </div>
     </div>
 
-    <div class="toast" :class="{ show: toastVisible }">{{ toastMessage }}</div>
+    <div v-if="toastVisible" class="login-notice" role="status">{{ toastMessage }}</div>
   </div>
 </template>
