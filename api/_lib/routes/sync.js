@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { Router } from 'express';
 import db from '../db.js';
-import { requireDesktopSync } from '../middleware/auth.js';
+import { requireDesktopSync, requireRole } from '../middleware/auth.js';
+import { publishDraft } from '../desktopPublications.js';
 
 const router = Router();
 const CONTRACT_VERSION = 1;
@@ -100,5 +101,16 @@ async function snapshotHandler(req, res) {
 // installed desktops move to the explicitly versioned path.
 router.get('/v1/snapshot', snapshotHandler);
 router.get('/snapshot', snapshotHandler);
+
+for (const [route, kind] of [['songs', 'song'], ['schedules', 'schedule']]) {
+  router.post(`/v1/${route}/publish`, requireRole('editor', 'admin'), async (req, res, next) => {
+    try {
+      res.json(await publishDraft(db, kind, req.user.sub, req.body));
+    } catch (error) {
+      if (error.status === 400) return res.status(400).json({ error: error.message });
+      next(error);
+    }
+  });
+}
 
 export default router;

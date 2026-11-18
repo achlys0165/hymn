@@ -51,9 +51,8 @@ export function requireRole(...roles) {
   };
 }
 
-// Desktop sync is intentionally read-only and uses a separate, revocable
-// credential. This token is configured at deployment/runtime and is never a
-// Turso credential, so the desktop application cannot issue arbitrary SQL.
+// Desktop sync uses a scoped credential. The legacy token has snapshot access.
+// Publication routes additionally require a signed-in editor or administrator.
 export async function requireDesktopSync(req, res, next) {
   const configuredToken = process.env.DESKTOP_SYNC_TOKEN;
   const header = req.get('authorization') || '';
