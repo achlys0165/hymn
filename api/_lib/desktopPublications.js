@@ -5,7 +5,13 @@ function invalid(message) {
   return Object.assign(new Error(message), { status: 400 });
 }
 
-export async function publishDraft(db, kind, userId, draft) {
+export async function publishDraft(db, kind, userId, request) {
+  if (!['song', 'schedule'].includes(kind)) throw invalid('Invalid desktop publication type.');
+  let draft = request;
+  if (request && Object.hasOwn(request, 'contractVersion')) {
+    if (request.contractVersion !== 1) throw invalid('Unsupported publishing version. Update Hymn Control.');
+    draft = request[kind];
+  }
   const localId = draft?.localId;
   if (typeof localId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(localId)) throw invalid('The desktop draft ID is invalid.');
   const name = kind === 'song' ? draft.title : draft.name;
