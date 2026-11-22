@@ -67,7 +67,7 @@ export async function commitPastedSetlist(api,{ entries, fields, setlistId, base
       else {
         if(!entry.title?.trim()) throw new Error('Enter a title for each new song.');
         stage='song';
-        const {song}=await api('/songs',{method:'POST',body:{title:entry.title,artist:entry.artist||'',lyrics:'',category:'praise_worship'}});
+        const {song}=await api('/songs',{method:'POST',body:{title:entry.title,artist:entry.artist||'',lyrics:entry.lyrics??'',category:'praise_worship'}});
         created.push(song);
         planned.push(Number(song.id));
       }

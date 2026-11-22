@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { AlertCircle, Check, ChevronLeft, Clipboard, Copy, LoaderCircle, Plus, Search, X } from 'lucide-vue-next';
 import { detectSetlistHeading, indexSetlistLibrary, matchSetlist, normalizeSetlistTitle } from '../../shared/setlistMatcher.js';
-import { formatDate, nextSunday, parseDate, pluralCount, readSetting, songCount, writeSetting } from '../utils/workspace.js';
+import { formatDate, nextSunday, normalizeLyricLabels, parseDate, pluralCount, readSetting, songCount, writeSetting } from '../utils/workspace.js';
 import DateField from './DateField.vue';
 import GrowingTextarea from './GrowingTextarea.vue';
 import SegmentedControl from './SegmentedControl.vue';
@@ -52,7 +52,8 @@ function updateReview() {
   const previous=new Map(matches.value.map(entry=>[entry.id+'\0'+entry.raw,entry]));
   matches.value=matchSetlist(text.value,props.songs,index.value).map(entry=>{
     const old=previous.get(entry.id+'\0'+entry.raw);
-    return {...entry, choice:old?.choice, intent:old?.intent, newTitle:old?.newTitle??entry.title, rejected:old?.rejected};
+    return {...entry, choice:old?.choice, intent:old?.intent, newTitle:old?.newTitle??entry.title,
+      newArtist:old?.newArtist??entry.artist, lyrics:old?.lyrics??'', rejected:old?.rejected};
   });
   pending.value=false;
 }
@@ -79,7 +80,7 @@ const rows=computed(()=>{
     if(entry.rejected&&!entry.choice) status='missing';
     if(intent==='skip') status='skipped';
     else if(intent==='create') {
-      const key=normalizeSetlistTitle(entry.newTitle)+'\0'+normalizeSetlistTitle(entry.artist);
+      const key=normalizeSetlistTitle(entry.newTitle)+'\0'+normalizeSetlistTitle(entry.newArtist);
       const earlier=seen.get(key);
       if(earlier!=null) { status='duplicate'; reason='Same as line '+earlier; }
       else {
@@ -175,7 +176,8 @@ async function submit() {
   failure.value='';
   try {
     const result=await props.confirmSongs({
-      entries:accepted.value.map(({entry,song,status})=>status==='new'?{title:entry.newTitle,artist:entry.artist}:{id:Number(song.id)}),
+      entries:accepted.value.map(({entry,song,status})=>status==='new'
+        ?{title:entry.newTitle,artist:entry.newArtist,lyrics:normalizeLyricLabels(entry.lyrics).trim()}:{id:Number(song.id)}),
       mode:relevantMode.value?mode.value:'append',
       fields:props.createSetlist?{ name:name.value,date:date.value,status:'draft',description:'',service_time:'' }:undefined,
     });
@@ -266,9 +268,12 @@ onBeforeUnmount(()=>{media.removeEventListener('change',updateWidth);clearTimeou
                 <button class="h-primary" type="button" @click="openPicker(entry,$event)"><Search /> Search library</button>
                 <button class="h-secondary" type="button" @click="entry.intent='create'"><Plus /> Create song</button>
               </div>
-              <div v-else-if="status==='new'" class="h-paste-extra">
+              <div v-else-if="status==='new'" class="h-paste-extra h-paste-new-song">
                 <label class="h-field">New song title<input v-model="entry.newTitle" maxlength="300"></label>
-                <p class="h-meta">{{ staged?'Added to your library without lyrics when you save the draft.':'Created in your library without lyrics when you confirm.' }}</p>
+                <label class="h-field">Artist <span class="h-meta">Optional</span><input v-model="entry.newArtist" maxlength="300"></label>
+                <label class="h-field">Lyrics<GrowingTextarea v-model="entry.lyrics" rows="6" spellcheck="false" autocorrect="off"
+                  placeholder="Write or paste lyrics here. Use a blank line between sections." /></label>
+                <p class="h-meta">{{ staged?'The song and its lyrics will be added to your library when you save the draft.':'The song and its lyrics will be added to your library when you confirm.' }} You can leave lyrics blank and add them later.</p>
                 <button class="h-ghost" type="button" @click="openPicker(entry,$event)">Use a library song instead</button>
               </div>
               <div v-else-if="status==='duplicate'" class="h-paste-extra">

@@ -60,6 +60,7 @@
 .h-app .h-paste-status svg { width: 16px; height: 16px; }
 .h-paste-extra,.h-pasted-line { margin: 0 0 7px 38px !important; }
 .h-paste-extra.h-actions { margin-top: 4px !important; }
+.h-paste-new-song { display: grid; gap: 10px; }
 .h-paste-rows .is-skipped .h-row-copy { text-decoration: line-through; opacity: .65; }
 .h-paste-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
 .h-paste-outcome { min-width: 0; }

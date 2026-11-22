@@ -212,7 +212,70 @@ export async function verifyEditorFlows(origin,songs,setlists,rejectSetlistCreat
       assert.deepEqual(errors,[]);
       await page.close();
     }
-    console.log(`${engine}: editor and setlist passed at ${sizes.length} viewport widths using disposable data.`);
+    for(const width of [390,1366]) {
+      for(const staged of [false,true]) {
+        const page=await browser.newPage({viewport:{width,height:844},isMobile:width<900,hasTouch:width<900});
+        const errors=[];
+        page.on('pageerror',error=>errors.push(error.message));
+        page.on('dialog',dialog=>dialog.accept());
+        const title=width===390?(staged?'Copper meadow':'Silver orchard'):(staged?'Violet harbor':'Amber lantern');
+        const lyrics='[Verse 1]\nFirst lyric line\nSecond lyric line\n\n[Chorus]\nAnother lyric line';
+        const list='10,000 reasons\n'+title+'\nAgnus dei (anniv)';
+        const songCount=songs.length;
+        await page.goto(origin);
+        await page.locator(width<900?'.h-bottom-create':'.h-rail .h-create').click();
+        await page.getByRole('dialog',{name:'Create'}).getByRole('button',{name:staged?/New setlist/:/Paste setlist/}).click();
+        if(staged) await page.getByRole('button',{name:'Paste setlist',exact:true}).click();
+        const paste=page.getByRole('dialog',{name:'Paste setlist'});
+        const input=paste.locator('textarea.h-paste-input');
+        const submit=paste.locator('.h-paste-buttons .h-primary');
+        await input.fill(list);
+        if(width<900) await submit.click();
+        await paste.getByRole('button',{name:'Create song',exact:true}).click();
+        await paste.getByLabel('New song title',{exact:true}).fill(title+' edited');
+        await paste.getByLabel('Artist Optional',{exact:true}).fill('Test artist');
+        await paste.getByLabel('Lyrics',{exact:true}).fill(lyrics);
+        // Rematching and navigating back to the paste pane must preserve the new song.
+        if(width<900) await paste.getByRole('button',{name:'Back to paste',exact:true}).click();
+        await input.fill(list+'\n');
+        if(width<900) await submit.click();
+        await paste.getByText('3 lines · 2 matched · 0 need a choice · 0 not found · 1 new',{exact:true}).waitFor();
+        assert.equal(await paste.getByLabel('Lyrics',{exact:true}).inputValue(),lyrics);
+        assert.equal(await paste.getByLabel('New song title',{exact:true}).inputValue(),title+' edited');
+        assert.equal(await paste.getByLabel('Artist Optional',{exact:true}).inputValue(),'Test artist');
+        assert.equal(songs.length,songCount,'Nothing is saved before confirmation');
+        assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+        await paste.getByLabel('Lyrics',{exact:true}).scrollIntoViewIfNeeded();
+        if(artifacts) await page.screenshot({path:join(artifacts,`hymn-${engine}-${width}-missing-song-${staged?'draft':'direct'}.png`),animations:'disabled'});
+        if(!staged&&width===390) {
+          rejectSetlistCreate(true);
+          try {
+            await submit.click();
+            await paste.getByRole('alert').waitFor();
+            assert.equal(await paste.getByLabel('Lyrics',{exact:true}).inputValue(),lyrics);
+            assert.equal(songs.length,songCount,'Failed setlist creation cleans up its new song');
+          } finally { rejectSetlistCreate(false); }
+        }
+        await submit.click();
+        await paste.waitFor({state:'hidden'});
+        if(staged) {
+          assert.equal(songs.length,songCount,'Staged lyrics wait for the setlist save');
+          await page.getByRole('button',{name:'Save setlist',exact:true}).click();
+          await page.getByRole('button',{name:'Save setlist',exact:true}).waitFor({state:'hidden'});
+        }
+        const created=songs.find(song=>song.title===title+' edited');
+        assert.ok(created);
+        assert.equal(created.artist,'Test artist');
+        assert.equal(created.lyrics,lyrics);
+        assert.equal(songs.length,songCount+1);
+        const detail=await (await page.request.get(origin+'/api/schedules/'+setlists.at(-1).id)).json();
+        assert.deepEqual(detail.songs.map(song=>song.song_id),[1,created.id,2]);
+        assert.equal(detail.songs[1].lyrics,lyrics);
+        assert.deepEqual(errors,[]);
+        await page.close();
+      }
+    }
+    console.log(`${engine}: editor and setlist passed at ${sizes.length} viewport widths; missing-song lyrics passed on phone and desktop, directly and through drafts, including save retry.`);
   } finally {
     await browser.close();
   }

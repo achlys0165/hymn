@@ -54,3 +54,33 @@ test('editing elsewhere prevents pasted changes from overwriting the setlist', a
   }), /saved songs differ/);
   assert.deepEqual(changes,[]);
 });
+
+test('pasted missing songs save lyrics and artist before creating the ordered setlist', async () => {
+  const calls=[];
+  const lyrics='[Verse 1]\nFirst lyric line\nSecond lyric line\n\n[Chorus]\nAnother lyric line';
+  const api=async (path, options)=>{
+    calls.push({path,...options});
+    return path==='/songs'?{song:{id:4,...options.body}}:{schedule:{id:2,...options.body}};
+  };
+  const result=await commitPastedSetlist(api,{
+    entries:[{id:1},{title:'Missing song',artist:'Song artist',lyrics},{id:2}],fields:{name:'Sunday'},
+  });
+  assert.deepEqual(calls,[
+    {path:'/songs',method:'POST',body:{title:'Missing song',artist:'Song artist',lyrics,category:'praise_worship'}},
+    {path:'/schedules',method:'POST',body:{name:'Sunday',song_ids:[1,4,2]}},
+  ]);
+  assert.equal(result.created[0].lyrics,lyrics);
+});
+
+test('adding a missing song to an existing setlist keeps its lyrics; title-only entries still work', async () => {
+  for(const lyrics of ['[Verse 1]\nLine one\nLine two',undefined]) {
+    const {api,schedules}=fixture();
+    let sent;
+    await commitPastedSetlist(async (path,options)=>{
+      if(path==='/songs') sent=options.body;
+      return api(path,options);
+    },{entries:[{title:'New song',lyrics}],setlistId:1,baseIds:[1,2]});
+    assert.equal(sent.lyrics,lyrics??'');
+    assert.deepEqual(schedules[1].map(row=>row.song_id),[1,2,4]);
+  }
+});
