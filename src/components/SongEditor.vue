@@ -1,11 +1,12 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
-import { ArrowDown, ArrowUp, Camera, Clipboard, Copy, GripVertical, Trash2 } from 'lucide-vue-next';
-import { cleanOcrText, extractTextFromImage, isChordLine } from '../utils/lyricsOcr.js';
+import { ArrowDown, ArrowUp, Clipboard, Copy, GripVertical, Trash2 } from 'lucide-vue-next';
+import { isChordLine } from '../utils/lyricsOcr.js';
 import { joinLyrics, lyricLabel, lyricsForEditor, normalizeLyricLabels, readSetting, sectionName, splitLyrics, tidyPastedLyrics, writeSetting } from '../utils/workspace.js';
 import EditorFooter from './EditorFooter.vue';
 import FormListbox from './FormListbox.vue';
 import GrowingTextarea from './GrowingTextarea.vue';
+import LyricsPhotoScan from './LyricsPhotoScan.vue';
 import SegmentedControl from './SegmentedControl.vue';
 
 const props = defineProps({ song: Object, busy: Boolean, flow: String, draftKey: String, canSave: Boolean });
@@ -42,12 +43,7 @@ let dragIndex=null;
 let warnedEmpty=false;
 let analysisTimer;
 let idleAnalysis;
-const photo = ref(null);
-const file = ref(null);
-const recognized = ref('');
 const scanning = ref(false);
-const scanStatus = ref('');
-const scanError = ref('');
 const previewText=computed(()=>props.song?.id && analyzed.value===initialLyrics ? initialLyrics : normalizeLyricLabels(analyzed.value).trim());
 const preview=computed(()=>splitLyrics(previewText.value));
 const conversion=computed(()=>previewText.value!==analyzed.value && splitLyrics(analyzed.value).some(section=>{
@@ -76,7 +72,6 @@ const suggestions=computed(()=>{
   if (chords) result.push({key:'chords',text:'Found '+chords+' chord '+(chords===1?'line.':'lines.'),action:'Remove chord lines'});
   return result.filter(item=>!dismissed.value.has(item.key));
 });
-let active = true;
 let latestDraft;
 let timer;
 
@@ -268,65 +263,12 @@ function restoreDraft() {
   analyze();
   restored.value = null;
 }
-function choosePhoto(event) {
-  const selected = event.target.files?.[0];
-  event.target.value = '';
-  if (!selected) return;
-  file.value = selected;
-  scanPhoto();
-}
-async function scanPhoto() {
-  if (!file.value || scanning.value) return;
-  scanError.value = '';
-  recognized.value = '';
-  const source = file.value;
-  if (source.size > 15 * 1024 * 1024) { scanError.value = 'Choose a photo under 15 MB.'; return; }
-  scanning.value = true;
-  scanStatus.value = 'Preparing photo…';
-  try {
-    let input = source;
-    if (typeof createImageBitmap === 'function') {
-      const bitmap = await createImageBitmap(source);
-      try {
-        const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-        const context = canvas.getContext('2d');
-        context.fillStyle = '#fff';
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        input = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .85)) || source;
-      } finally {
-        bitmap.close();
-      }
-    }
-    if (!active) return;
-    const text = await extractTextFromImage(input, { onProgress({ status, progress }) {
-      if (active && status === 'recognizing text') scanStatus.value = 'Scanning… ' + Math.round(progress * 100) + '%';
-    } });
-    if (!active) return;
-    const result = cleanOcrText(text);
-    recognized.value = result.text;
-    scanStatus.value = result.text ? 'Review the extracted lyrics before inserting.' : '';
-    if (!result.text) scanError.value = 'No readable text was found. Try a clearer photo.';
-  } catch (error) {
-    scanStatus.value = '';
-    scanError.value = /heic|heif/i.test(source.type + source.name)
-      ? 'This browser could not open that HEIC photo. Try a JPEG or PNG copy.' : 'The photo could not be read. Try again or choose another image.';
-  } finally {
-    scanning.value = false;
-  }
-}
-function insertScan() {
+function insertScan(scan) {
   mode.value='write';
-  const scan=recognized.value;
   nextTick(()=>{
     const end=textField()?.value.length??0;
     insertText((end?'\n\n':'')+scan,end,end);
   });
-  recognized.value = '';
-  scanStatus.value = '';
 }
 function save() {
   if (props.busy || !props.canSave || scanning.value) return;
@@ -350,7 +292,6 @@ onMounted(() => {
   if (props.flow !== 'scan') textField()?.focus({preventScroll:desktop.value});
 });
 onBeforeUnmount(() => {
-  active = false;
   clearTimeout(timer);
   clearTimeout(analysisTimer);
   if(idleAnalysis) window.cancelIdleCallback?.(idleAnalysis);
@@ -371,19 +312,10 @@ onBeforeUnmount(() => {
     </label>
     <label class="h-field">Artist <span class="h-meta">Optional</span><input v-model="draft.artist" autocapitalize="words"></label>
     <FormListbox v-model="draft.category" label="Category" :options="categories" />
-    <section class="h-actions h-editor-tools" aria-label="Lyrics tools">
+    <LyricsPhotoScan :disabled="busy" :camera="flow==='scan'" @busy="scanning=$event" @insert="insertScan">
       <button v-if="flow==='paste'" class="h-primary" type="button" @click="readClipboard"><Clipboard /> Paste from clipboard</button>
-      <button class="h-secondary" type="button" :disabled="scanning" @click="photo?.click()"><Camera /> Scan photo</button>
-      <input ref="photo" type="file" accept="image/*" hidden @change="choosePhoto">
-      <label v-if="flow === 'scan'" class="h-secondary h-capture"><Camera /> Take photo<input type="file" accept="image/*" capture="environment" @change="choosePhoto"></label>
-    </section>
+    </LyricsPhotoScan>
     <p v-if="clipboardHint" class="h-meta" role="status">Long-press in the lyrics field to paste, or press Ctrl/Cmd+V.</p>
-    <p v-if="scanStatus" class="h-meta" role="status">{{ scanStatus }}</p>
-    <div v-if="scanError" class="h-actions"><p class="h-danger" role="alert">{{ scanError }}</p><button type="button" class="h-ghost" @click="scanPhoto">Retry</button></div>
-    <section v-if="recognized" class="h-service">
-      <label class="h-field">Review scanned lyrics<GrowingTextarea v-model="recognized" rows="5" spellcheck="false" /></label>
-      <div class="h-actions"><button class="h-primary" type="button" @click="insertScan">Insert lyrics</button><button class="h-ghost" type="button" @click="recognized = ''; scanStatus = ''">Discard scan</button></div>
-    </section>
     <div class="h-actions"><h2>Lyrics</h2><SegmentedControl v-model="mode" class="h-end" :choices="modes" label="Lyrics view" /></div>
     <div class="h-lyrics-work" :class="{'h-lyrics-split':wide&&mode==='write'}">
       <section v-show="mode==='write'" class="h-lyrics-write">

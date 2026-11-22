@@ -5,6 +5,7 @@ import { detectSetlistHeading, indexSetlistLibrary, matchSetlist, normalizeSetli
 import { formatDate, nextSunday, normalizeLyricLabels, parseDate, pluralCount, readSetting, songCount, writeSetting } from '../utils/workspace.js';
 import DateField from './DateField.vue';
 import GrowingTextarea from './GrowingTextarea.vue';
+import LyricsPhotoScan from './LyricsPhotoScan.vue';
 import SegmentedControl from './SegmentedControl.vue';
 import SongPicker from './SongPicker.vue';
 import WorkspaceDialog from './WorkspaceDialog.vue';
@@ -33,6 +34,7 @@ const clipboardHint=ref(false);
 const choice=ref(null);
 const choiceAnchor=ref(null);
 const busy=ref(false);
+const scanningEntry=ref(null);
 const failure=ref('');
 const unresolvedFailure=ref(false);
 const pending=ref(false);
@@ -166,7 +168,7 @@ function close() {
   emit('close');
 }
 async function submit() {
-  if(busy.value||pending.value||!accepted.value.length||!props.canSave||unresolvedFailure.value) return;
+  if(busy.value||scanningEntry.value!==null||pending.value||!accepted.value.length||!props.canSave||unresolvedFailure.value) return;
   if(props.createSetlist&&(!name.value.trim()||date.value&&!parseDate(date.value))) {
     editFields.value=true;
     failure.value='Enter a setlist name and a valid date.';
@@ -271,6 +273,8 @@ onBeforeUnmount(()=>{media.removeEventListener('change',updateWidth);clearTimeou
               <div v-else-if="status==='new'" class="h-paste-extra h-paste-new-song">
                 <label class="h-field">New song title<input v-model="entry.newTitle" maxlength="300"></label>
                 <label class="h-field">Artist <span class="h-meta">Optional</span><input v-model="entry.newArtist" maxlength="300"></label>
+                <LyricsPhotoScan camera :disabled="busy||scanningEntry!==null&&scanningEntry!==entry.id"
+                  @busy="scanningEntry=$event?entry.id:null" @insert="entry.lyrics+=(entry.lyrics?'\n\n':'')+$event" />
                 <label class="h-field">Lyrics<GrowingTextarea v-model="entry.lyrics" rows="6" spellcheck="false" autocorrect="off"
                   placeholder="Write or paste lyrics here. Use a blank line between sections." /></label>
                 <p class="h-meta">{{ staged?'The song and its lyrics will be added to your library when you save the draft.':'The song and its lyrics will be added to your library when you confirm.' }} You can leave lyrics blank and add them later.</p>
@@ -298,7 +302,7 @@ onBeforeUnmount(()=>{media.removeEventListener('change',updateWidth);clearTimeou
         </div>
         <div class="h-paste-buttons">
           <button v-if="!showReview" class="h-primary" type="button" :disabled="!text.trim()" @click="reviewNow">Review</button>
-          <button v-else class="h-primary" type="button" :disabled="busy||pending||!accepted.length||!canSave||loading||unresolvedFailure" @click="submit">
+          <button v-else class="h-primary" type="button" :disabled="busy||scanningEntry!==null||pending||!accepted.length||!canSave||loading||unresolvedFailure" @click="submit">
             <LoaderCircle v-if="busy" class="h-spinning" />
             {{ busy ? (createSetlist?'Creating…':'Saving…') : failure&&!unresolvedFailure ? 'Try again' : outcome }}
           </button>

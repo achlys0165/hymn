@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { isChordLine } from '../../src/utils/lyricsOcr.js';
+import { normalizeLyricLabels } from '../../src/utils/workspace.js';
 
 export async function verifyEditorFlows(origin,songs,setlists,rejectSetlistCreate) {
   const engine=process.env.HYMN_BROWSER_ENGINE||'chromium';
@@ -55,7 +57,78 @@ export async function verifyEditorFlows(origin,songs,setlists,rejectSetlistCreat
       await page.getByRole('button',{name:'Add lyrics',exact:true}).click();
       await page.getByRole('button',{name:'Paste from clipboard'}).waitFor();
       assert.equal(await write.inputValue(),'');
-      console.log('Clipboard success and fallback, photo OCR, draft restoration, and Add lyrics passed with disposable data.');
+      await page.close();
+      for(const [width,staged,title] of [[390,false,'Silver orchard'],[1366,true,'Violet harbor']]) {
+        const phone=width<900;
+        const page=await browser.newPage({viewport:{width,height:844},hasTouch:phone,isMobile:phone});
+        const errors=[],external=[];
+        page.on('pageerror',error=>errors.push(error.message));
+        page.on('request',request=>{if(/^https?:/.test(request.url())&&!request.url().startsWith(origin+'/')) external.push(request.url());});
+        const count=songs.length;
+        await page.goto(origin);
+        await page.locator(phone?'.h-bottom-create':'.h-rail .h-create').click();
+        await page.getByRole('dialog',{name:'Create'}).getByRole('button',{name:staged?/New setlist/:/Paste setlist/}).click();
+        if(staged) await page.getByRole('button',{name:'Paste setlist',exact:true}).click();
+        const paste=page.getByRole('dialog',{name:'Paste setlist'});
+        await paste.locator('.h-paste-input').fill('10,000 reasons\n'+title);
+        if(phone) await paste.getByRole('button',{name:'Review',exact:true}).click();
+        await paste.getByRole('button',{name:'Create song',exact:true}).click();
+        const scanner=paste.locator('.h-lyrics-scan');
+        const input=scanner.locator('input[type=file]').first();
+        const lyrics=paste.getByLabel('Lyrics',{exact:true});
+        const result=paste.getByLabel('Review scanned lyrics',{exact:true});
+        const submit=paste.locator('.h-paste-buttons .h-primary');
+        await lyrics.fill('Already typed lyrics');
+        assert.equal(await scanner.locator('input[capture=environment]').count(),1);
+        await scanner.getByRole('button',{name:'Scan photo',exact:true}).waitFor();
+        await scanner.getByRole('button',{name:'Take photo',exact:true}).waitFor();
+        if(phone) {
+          await input.setInputFiles({name:'too-large.png',mimeType:'image/png',buffer:Buffer.alloc(15*1024*1024+1)});
+          await scanner.getByRole('alert').getByText('Choose a photo under 15 MB.',{exact:true}).waitFor();
+          await input.setInputFiles({name:'broken.png',mimeType:'image/png',buffer:Buffer.from('not an image')});
+          await scanner.getByRole('alert').getByText('The photo could not be read. Try again or choose another image.',{exact:true}).waitFor();
+          assert.equal(await lyrics.inputValue(),'Already typed lyrics');
+        }
+        await input.setInputFiles(scanImage);
+        await scanner.locator('[disabled]').first().waitFor();
+        assert.equal(await submit.isDisabled(),true,'Saving waits for OCR to finish');
+        await result.waitFor({timeout:60000});
+        const extracted=await result.inputValue();
+        assert.match(extracted,/together again/i);
+        assert.deepEqual(extracted.split(/\r?\n/).filter(line=>line.trim()&&isChordLine(line)),[],'Chord rows are removed');
+        assert.equal(await lyrics.inputValue(),'Already typed lyrics','Scanning requires explicit insertion');
+        assert.equal(songs.length,count,'Scanning never writes a song');
+        if(phone) {
+          await scanner.getByRole('button',{name:'Discard scan',exact:true}).click();
+          assert.equal(await lyrics.inputValue(),'Already typed lyrics');
+          await scanner.locator('input[capture=environment]').setInputFiles(scanImage);
+          await result.waitFor({timeout:60000});
+        }
+        const reviewed='[Verse 1]\nReviewed lyric line\n'+extracted;
+        await result.fill(reviewed);
+        await page.evaluate(()=>document.documentElement.dataset.theme='dark');
+        await result.scrollIntoViewIfNeeded();
+        assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+        if(artifacts) await page.screenshot({path:join(artifacts,`hymn-${engine}-${width}-setlist-ocr-review.png`),animations:'disabled'});
+        await scanner.getByRole('button',{name:'Insert lyrics',exact:true}).click();
+        const expected='Already typed lyrics\n\n'+reviewed;
+        assert.equal(await lyrics.inputValue(),expected);
+        await submit.click();
+        await paste.waitFor({state:'hidden'});
+        if(staged) {
+          assert.equal(songs.length,count);
+          await page.getByRole('button',{name:'Save setlist',exact:true}).click();
+          await page.getByRole('button',{name:'Save setlist',exact:true}).waitFor({state:'hidden'});
+        }
+        const created=songs.find(song=>song.title===title);
+        assert.equal(created?.lyrics,normalizeLyricLabels(expected).trim());
+        const detail=await (await page.request.get(origin+'/api/schedules/'+setlists.at(-1).id)).json();
+        assert.deepEqual(detail.songs.map(song=>song.song_id),[1,created.id]);
+        assert.deepEqual(external,[],'OCR uses only local assets');
+        assert.deepEqual(errors,[]);
+        await page.close();
+      }
+      console.log('Photo OCR passed in the song editor and missing-song forms on phone and desktop: review, chord removal, append, discard, invalid/oversize images, draft saving and local-only assets.');
       return;
     }
     for (const [width,height] of sizes) {

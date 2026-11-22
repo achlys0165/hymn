@@ -7,6 +7,7 @@
   line-height: 1.6;
 }
 .h-app textarea.h-raw-lyrics { min-height: 40dvh; scroll-margin-block-start: calc(var(--top) + 8px); }
+.h-lyrics-scan { display: grid; gap: 10px; min-width: 0; }
 .h-lyrics-work,.h-lyrics-write,.h-lyrics-preview { min-width: 0; display: grid; align-content: start; gap: 12px; }
 .h-lyrics-split { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; }
 .h-lyrics-preview { border: 1px solid var(--h-border); border-radius: 14px; padding: 14px; }
