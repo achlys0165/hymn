@@ -1,8 +1,32 @@
-# Hymn web app
+# Hymn
+### Song preparation on the web. Presentation beyond the browser.
 
-The web app manages the shared Turso song library and schedules. The desktop
-presenter downloads a read-only snapshot through this API and keeps a local
-SQLite cache for offline presentation.
+A worship workflow for managing a shared song library and scheduled setlists.
+The web app connects to a desktop presenter through a versioned sync API, so
+prepared content can be cached locally for offline presentation.
+
+**[Open web app](https://top-hymn.vercel.app)** · [Developer setup](#required-environment-variables) · [Sync contract](#sync-contract)
+
+> The hosted app requires an authorized Hymn account.
+
+## At a glance
+
+| Capability | What it does |
+| --- | --- |
+| Song library and setlists | Keep lyrics and service schedules in one shared workspace. |
+| Photo-to-lyrics import | Run OCR in the browser, remove chord-only rows, and review lyrics before saving. |
+| Role-based access | Separate member, editor, and administrator permissions. |
+| Desktop synchronization | Deliver read-only snapshots with a versioned schema and conditional requests. |
+| Offline presentation support | Let the desktop presenter keep a local SQLite cache without uploading desktop-only records. |
+
+**Stack:** Vue 3 · Vite · Tailwind CSS · Node.js / Express · Turso · Tesseract.js
+
+This repository contains the **web app and sync API**. The desktop presenter is
+a separate client.
+
+---
+
+## Developer documentation
 
 ## Required environment variables
 
